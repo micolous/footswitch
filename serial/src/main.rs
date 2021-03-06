@@ -28,7 +28,8 @@ impl MicController<'_> {
     }
     
     pub fn pumpit(&mut self) {
-        println!("comms_device = {:?}", self.audio.get_comms_device());
+        let comms_device = self.audio.get_comms_device().unwrap();
+        println!("comms_device = {:?}", comms_device);
 
         loop {
             // TODO: set timeout to be sensible?
@@ -38,6 +39,7 @@ impl MicController<'_> {
                     println!("got channel message: {}", msg);
                     
                     // TODO: a thing
+                    comms_device.set_mute(!msg).expect("set_mute");
                 },
                 Err(error) => match error {
                     mpsc::RecvTimeoutError::Timeout => continue,

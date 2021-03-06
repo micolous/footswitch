@@ -13,11 +13,13 @@ serial = "0.4"
 winapi = { version = "0.3", features = [
         "combaseapi",
         "coml2api",
+        "endpointvolume",
         "functiondiscoverykeys_devpkey",
         "mmdeviceapi",
         "objbase",
         "propkey",
         "winbase",
+        "winerror",
         "winuser",
         "wtypesbase",
     ]}
