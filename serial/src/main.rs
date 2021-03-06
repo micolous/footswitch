@@ -8,18 +8,28 @@ use std::time::Duration;
 
 use serial::prelude::*;
 
-pub struct MicController {
+mod audio_controller;
+#[cfg(windows)] mod windows;
+
+use audio_controller::AudioController;
+#[cfg(windows)] use windows::WindowsAudioController;
+
+pub struct MicController<'a> {
     chan: mpsc::Receiver<bool>,
+    audio: &'a dyn AudioController,
 }
 
-impl MicController {
-    pub fn new(chan: mpsc::Receiver<bool>) -> MicController {
+impl MicController<'_> {
+    pub fn new<T: AudioController>(chan: mpsc::Receiver<bool>) -> Self {
         MicController {
             chan: chan,
+            audio: Box::leak(T::new()),
         }
     }
     
     pub fn pumpit(&mut self) {
+        println!("comms_device = {:?}", self.audio.get_comms_device());
+
         loop {
             // TODO: set timeout to be sensible?
             let res = self.chan.recv_timeout(Duration::from_millis(1000));
@@ -96,8 +106,8 @@ fn main() {
 
         println!("wait for thread");
         
-        let mut mc = MicController::new(rx);
         let mic_thread = thread::spawn(move || {
+            let mut mc = MicController::new::<WindowsAudioController>(rx);
             mc.pumpit();
         });
         
