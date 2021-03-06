@@ -10,19 +10,31 @@ use std::slice;
 
 use crate::audio_controller::{AudioController, AudioInputDevice, AudioError};
 
-use winapi::um::coml2api::STGM_READ;
-use winapi::um::combaseapi::{CoCreateInstance, CLSCTX_ALL};
-use winapi::um::endpointvolume::IAudioEndpointVolume;
-use winapi::um::functiondiscoverykeys_devpkey::PKEY_Device_FriendlyName;
-use winapi::um::mmdeviceapi::{CLSID_MMDeviceEnumerator, IMMDevice, IMMDeviceEnumerator, eCapture, eCommunications};
-use winapi::um::objbase::CoInitialize;
-use winapi::um::propkeydef::REFPROPERTYKEY;
-use winapi::um::propsys::IPropertyStore;
-use winapi::um::winbase::lstrlenW;
-use winapi::shared::wtypesbase::{CLSCTX_INPROC_SERVER};
-use winapi::shared::minwindef::BOOL;
-use winapi::shared::winerror::{S_OK, S_FALSE};
-use winapi::Interface;
+use winapi::{
+    um::{
+        combaseapi::{CoCreateInstance, CLSCTX_ALL},
+        coml2api::STGM_READ,
+        endpointvolume::IAudioEndpointVolume,
+        functiondiscoverykeys_devpkey::PKEY_Device_FriendlyName,
+        mmdeviceapi::{
+            CLSID_MMDeviceEnumerator,
+            IMMDevice,
+            IMMDeviceEnumerator,
+            eCapture,
+            eCommunications,
+        },
+        objbase::CoInitialize,
+        propkeydef::REFPROPERTYKEY,
+        propsys::IPropertyStore,
+        winbase::lstrlenW,
+    },
+    shared::{
+        minwindef::BOOL,
+        winerror::{S_OK, S_FALSE},
+        wtypesbase::{CLSCTX_INPROC_SERVER}
+    },
+    Interface,
+};
 
 macro_rules! try_com {
 	($expr:expr) => (

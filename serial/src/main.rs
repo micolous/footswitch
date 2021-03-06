@@ -36,9 +36,13 @@ impl MicController<'_> {
             let res = self.chan.recv_timeout(Duration::from_millis(1000));
             match res {
                 Ok(msg) => {
-                    println!("got channel message: {}", msg);
-                    
-                    // TODO: a thing
+                    if msg {
+                        println!("Button pressed");
+                    } else {
+                        println!("Button released");
+                    }
+
+                    // TODO: debounce and input emulation
                     comms_device.set_mute(!msg).expect("set_mute");
                 },
                 Err(error) => match error {

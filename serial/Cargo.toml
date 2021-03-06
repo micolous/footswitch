@@ -1,5 +1,5 @@
 [package]
-name = "serial"
+name = "footswitch_serial"
 version = "0.1.0"
 authors = ["micolous"]
 edition = "2018"
@@ -15,11 +15,12 @@ winapi = { version = "0.3", features = [
         "coml2api",
         "endpointvolume",
         "functiondiscoverykeys_devpkey",
+        "minwindef",
         "mmdeviceapi",
         "objbase",
-        "propkey",
+        "propkeydef",
+        "propsys",
         "winbase",
         "winerror",
-        "winuser",
         "wtypesbase",
     ]}
