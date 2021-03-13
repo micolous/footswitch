@@ -8,7 +8,7 @@ use std::ffi::OsString;
 use std::os::windows::prelude::*;
 use std::slice;
 
-use crate::audio_controller::{AudioController, AudioInputDevice, AudioError};
+use crate::audio_controller::{AudioControllerTrait, AudioInputDeviceTrait, AudioError};
 
 use winapi::{
     um::{
@@ -46,17 +46,17 @@ macro_rules! try_com {
     )
 }
 
-pub struct WindowsAudioController {
+pub struct AudioController {
 }
 
 
-pub struct WindowsAudioInputDevice {
+pub struct AudioInputDevice {
     mm_device: *mut IMMDevice,
     name: String,
     audio_endpoint_volume: *mut IAudioEndpointVolume,
 }
 
-impl WindowsAudioController {   
+impl AudioController {   
     fn get_device_enumerator(&self) -> Result<*mut IMMDeviceEnumerator, AudioError> {
         unsafe {
             let mut device_enumerator = mem::MaybeUninit::<&mut IMMDeviceEnumerator>::uninit();
@@ -84,27 +84,27 @@ impl WindowsAudioController {
 }
 
 
-impl AudioController for WindowsAudioController {
-    fn new() -> Box<dyn AudioController> {
+impl AudioControllerTrait for AudioController {
+    fn new() -> Box<dyn AudioControllerTrait> {
         unsafe {
             CoInitialize(null_mut());
         }
-        Box::new(WindowsAudioController { })
+        Box::new(AudioController { })
     }
     
-    fn get_comms_device(&self) -> Result<Box<dyn AudioInputDevice>, AudioError> {
+    fn get_comms_device(&self) -> Result<Box<dyn AudioInputDeviceTrait>, AudioError> {
         let device_enumerator = self.get_device_enumerator()?;
 
-        Ok(Box::new(WindowsAudioInputDevice::new(self.get_default_communications_imm_device(device_enumerator)?)?))
+        Ok(Box::new(AudioInputDevice::new(self.get_default_communications_imm_device(device_enumerator)?)?))
     }
 }
 
-impl WindowsAudioInputDevice {
+impl AudioInputDevice {
     fn new(mm_device: *mut IMMDevice) -> Result<WindowsAudioInputDevice, AudioError> {
         // Read properties
-        let props = WindowsAudioInputDevice::open_property_store(mm_device)?;
+        let props = AudioInputDevice::open_property_store(mm_device)?;
         
-        Ok(WindowsAudioInputDevice {
+        Ok(AudioInputDevice {
             mm_device: mm_device,
             name: WindowsAudioInputDevice::get_property_value(props, &PKEY_Device_FriendlyName)?,
             audio_endpoint_volume: WindowsAudioInputDevice::get_endpoint_volume(mm_device)?,
@@ -153,7 +153,7 @@ unsafe fn from_ptr<'a>(ptr: *const u16) -> &'a [u16] {
     slice::from_raw_parts(ptr, len.try_into().unwrap())
 }
 
-impl AudioInputDevice for WindowsAudioInputDevice {
+impl AudioInputDeviceTrait for AudioInputDevice {
     fn name(&self) -> String {
         self.name.clone()
     }

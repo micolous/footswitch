@@ -8,8 +8,10 @@ edition = "2018"
 
 [dependencies]
 serial = "0.4"
+enigo = { path = "../../enigo" }
 
-[target.'cfg(windows)'.dependencies]
+
+[target.'cfg(target_os = "windows")'.dependencies]
 winapi = { version = "0.3", features = [
         "combaseapi",
         "coml2api",

@@ -1,4 +1,5 @@
 extern crate serial;
+extern crate enigo;
 
 use std::env;
 use std::io;
@@ -8,22 +9,30 @@ use std::time::Duration;
 
 use serial::prelude::*;
 
-mod audio_controller;
-#[cfg(windows)] mod windows;
+use enigo::{Enigo, Key, KeyboardControllable};
 
-use audio_controller::AudioController;
-#[cfg(windows)] use windows::WindowsAudioController;
+mod audio_controller;
+use audio_controller::AudioControllerTrait;
+
+#[cfg_attr(target_os = "macos", path = "macos.rs")]
+#[cfg_attr(target_os = "windows", path = "windows.rs")]
+mod os;
+use os::AudioController;
+
+const KEYCODE : Key = Key::F13;
 
 pub struct MicController<'a> {
     chan: mpsc::Receiver<bool>,
-    audio: &'a dyn AudioController,
+    audio: &'a dyn AudioControllerTrait,
+    enigo: Enigo,
 }
 
 impl MicController<'_> {
-    pub fn new<T: AudioController>(chan: mpsc::Receiver<bool>) -> Self {
+    pub fn new<T: AudioControllerTrait>(chan: mpsc::Receiver<bool>) -> Self {
         MicController {
             chan: chan,
             audio: Box::leak(T::new()),
+            enigo: Enigo::new(),
         }
     }
     
@@ -38,8 +47,10 @@ impl MicController<'_> {
                 Ok(msg) => {
                     if msg {
                         println!("Button pressed");
+                        self.enigo.key_down(KEYCODE);
                     } else {
                         println!("Button released");
+                        self.enigo.key_up(KEYCODE);
                     }
 
                     // TODO: debounce and input emulation
@@ -63,6 +74,7 @@ fn setup<T: SerialPort>(port: &mut T) -> io::Result<()> {
         settings.set_char_size(serial::Bits8);
         settings.set_parity(serial::ParityNone);
         settings.set_stop_bits(serial::Stop1);
+        settings.set_flow_control(serial::FlowHardware);
         Ok(())
     })?;
     
@@ -113,7 +125,7 @@ fn main() {
         println!("wait for thread");
         
         let mic_thread = thread::spawn(move || {
-            let mut mc = MicController::new::<WindowsAudioController>(rx);
+            let mut mc = MicController::new::<AudioController>(rx);
             mc.pumpit();
         });
         
