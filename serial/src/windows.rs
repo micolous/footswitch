@@ -154,8 +154,8 @@ unsafe fn from_ptr<'a>(ptr: *const u16) -> &'a [u16] {
 }
 
 impl AudioInputDeviceTrait for AudioInputDevice {
-    fn name(&self) -> String {
-        self.name.clone()
+    fn name(&self) -> Result<String, AudioError> {
+        Ok(self.name.clone())
     }
     
     fn set_mute(&self, state: bool) -> Result<bool, AudioError> {

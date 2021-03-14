@@ -44,10 +44,10 @@ unsigned long debounceDelay = 50;    // the debounce time; increase if the outpu
 void setup() {
   //start serial connection
   Serial.begin(9600);
+
   //configure pin 2 as an input and enable the internal pull-up resistor
   pinMode(buttonPin, INPUT_PULLUP);
   pinMode(ledPin, OUTPUT);
-
 }
 
 void loop() {

@@ -10,6 +10,10 @@ edition = "2018"
 serial = "0.4"
 enigo = { path = "../../enigo" }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+# cpal = { path = "../../cpal" }
+coreaudio-rs = "0.10.0"
+core-foundation-sys = "0.6.2"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 winapi = { version = "0.3", features = [

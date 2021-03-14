@@ -21,7 +21,12 @@ Events will only be sent if the button state changes.
 
 ## Client
 
-### Windows
+The client is being rewritten in Rust; the Python version will go away once it reaches parity.
+
+
+
+
+### Old Python client (Windows-only)
 
 Requirements:
 

@@ -8,7 +8,7 @@ pub struct AudioError {
 }
 
 pub trait AudioInputDeviceTrait {
-    fn name(&self) -> String;
+    fn name(&self) -> Result<String, AudioError>;
     fn set_mute(&self, state: bool) -> Result<bool, AudioError>;
 }
 
@@ -26,7 +26,7 @@ impl Display for dyn AudioInputDeviceTrait {
 impl Debug for dyn AudioInputDeviceTrait {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
         f.debug_struct("AudioInputDevice")
-         .field("name", &self.name())
+         .field("name", &self.name().unwrap())
          .finish()
     }
 }

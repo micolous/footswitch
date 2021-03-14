@@ -47,10 +47,10 @@ impl MicController<'_> {
                 Ok(msg) => {
                     if msg {
                         println!("Button pressed");
-                        self.enigo.key_down(KEYCODE);
+                        //self.enigo.key_down(KEYCODE);
                     } else {
                         println!("Button released");
-                        self.enigo.key_up(KEYCODE);
+                        //self.enigo.key_up(KEYCODE);
                     }
 
                     // TODO: debounce and input emulation
