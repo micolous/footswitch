@@ -55,10 +55,10 @@ Building and uploading the Arduino code requires the [Arduino IDE][Arduino].
 
 There are two versions of the code, which are in subdirectories of this repository:
 
-Version    | Arduino support                      | Protocol     | Client required?
----------- | ------------------------------------ | ------------ | ----------------
-`keyboard` | [ATmega32U4 and SAMD only][keyboard] | USB keyboard | no
-`serial`   | Any Arduino with serial              | USB serial   | yes
+Version    | Arduino support                      | USB device class      | Serial client
+---------- | ------------------------------------ | --------------------- | ----------------
+`keyboard` | [ATmega32U4 and SAMD only][keyboard] | HID keyboard + serial | optional
+`serial`   | Any Arduino with serial              | USB serial            | required
 
 1. Connect your Arduino board for the footswitch to your computer via USB.
 
@@ -77,18 +77,20 @@ Version    | Arduino support                      | Protocol     | Client requir
 ### keyboard version
 
 * **Arduino support**: ATmega32U4 and SAMD-based boards which support the [USB Keyboard Library][keyboard].
-* **Client required**: no
-* **OS support**: any that supports USB HID keyboards.
+* **Serial client**: optional
+* **OS support**: any that supports USB HID keyboards and USB CDC ACM.
 
 This version acts as a real USB HID keyboard device, so doesn't require any "client" running on your computer to work.
+
+It _also_ exposes a USB serial device (CDC ACM) which _can_ work with the serial version's client.
 
 The first time you use the device on macOS, [Keyboard Set-up Assistant][] will pop up.  Press any key on _any_ keyboard to skip the auto-detection process, and then set the keyboard type to `ANSI`.
 
 ### serial version
 
 * **Ardiuno support**: Any that provide a serial connection.
-* **Client required**: yes
-* **OS support**: Currently Windows-only.
+* **Serial client**: required
+* **OS support**: macOS ([see notes](#macos-notes)), Windows
 
 **This requires a "client" to work** -- this is a Python script that runs on your computer, and listens to the Arduino's serial port for button press and release events. Whenever it gets one, it simulates a keypress event, as if you pressed a key on a real keyboard.
 
@@ -107,6 +109,14 @@ In Discord:
 5. Press the footswitch
 
 At this point, the shortcut should show up as `F13`.
+
+### macOS notes
+
+Using simulated keypresses (for the serial version) requires access to `Accessibility` APIs (`System Preferences` -> `Privacy` -> `Accessibility`).
+
+Discord for macOS **does not** support using simulated keypresses to trigger hotkeys. This is because Discord captures global hotkeys in a way that _doesn't_ support accessibility APIs. :(
+
+Most other applications support simulated keypresses, so will work fine.
 
 ## License and acknowledgements
 
