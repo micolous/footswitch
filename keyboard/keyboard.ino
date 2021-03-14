@@ -1,5 +1,5 @@
 /*
-  Input Pull-up HID KEYBOARD + Debounce
+  Input Pull-up HID Keyboard + Serial + Debounce
 
   This example demonstrates the use of pinMode(INPUT_PULLUP). It reads a digital
   input on pin 2 and presses a key
@@ -50,6 +50,9 @@ void setup() {
 
   // Initialize keyboard device
   Keyboard.begin();
+
+  // Start serial connection
+  Serial.begin(9600);
 }
 
 void loop() {
@@ -78,8 +81,10 @@ void loop() {
       // HIGH when it's open, and LOW when it's pressed.
       if (buttonState == LOW) {
         Keyboard.press(keyCode);
+        Serial.print("1");
       } else {
         Keyboard.releaseAll();
+        Serial.print("0");
       }
 #ifdef ARDUINO_AVR_PROMICRO
       // Pro Micro has inverted LED state (LOW = on)
