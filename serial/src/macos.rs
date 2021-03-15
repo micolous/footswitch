@@ -1,9 +1,26 @@
 extern crate coreaudio;
 extern crate core_foundation_sys;
 
-use coreaudio::audio_unit::{AudioUnit, Element, SampleFormat, Scope, StreamFormat};
-use coreaudio::sys::*;
-use core_foundation_sys::string::{CFStringGetCString, CFStringGetCStringPtr, CFStringRef};
+use coreaudio::sys::{
+    AudioDeviceSetProperty,
+    AudioObjectGetPropertyData,
+    AudioObjectPropertyAddress,
+    AudioDeviceID,
+    kAudioObjectPropertyScopeGlobal,
+    kAudioHardwarePropertyDefaultInputDevice,
+    kAudioHardwareNoError,
+    kAudioObjectSystemObject,
+    kAudioDevicePropertyMute,
+    kAudioObjectPropertyElementMaster,
+    kAudioDevicePropertyScopeOutput,
+    kAudioDevicePropertyDeviceNameCFString,
+};
+use core_foundation_sys::string::{
+    CFStringGetCString,
+    CFStringGetCStringPtr,
+    CFStringRef,
+    kCFStringEncodingUTF8
+};
 use std::ffi::CStr;
 use std::ptr::null;
 use std::mem;
@@ -20,9 +37,10 @@ pub struct AudioInputDevice {
 
 macro_rules! try_cf {
 	($expr:expr) => (
+        #[allow(non_upper_case_globals)]
         match $expr as u32 {
             kAudioHardwareNoError => (),
-            _ => return Err(AudioError{ msg: format!("Error: {}", coreaudio::Error::from_os_status($expr).err().unwrap()) }),
+            _ => return Err(AudioError { msg: format!("Error: {}", coreaudio::Error::from_os_status($expr).err().unwrap()) }),
 		}
     )
 }
