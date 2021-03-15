@@ -37,10 +37,11 @@ Unfortunately the simulated keypresses only don't work with Discord on macOS, du
 You'll need to [install a Rust toolchain](https://www.rust-lang.org/tools/install), then run:
 
 ```sh
+cd serial
 cargo build --release
 ```
 
-This will give you an executable in `target/`
+This will give you an executable in `./target/release/footswitch_serial` (or `footswitch_serial.exe`).
 
 ### Old Python client (Windows-only)
 

@@ -6,6 +6,11 @@
 
 use crate::audio_controller::{AudioControllerTrait, AudioInputDeviceTrait, AudioError};
 
+#[macro_export]
+macro_rules! EXAMPLE_PORT {
+    () => { "/dev/ttyUSB0" };
+}
+
 pub struct AudioController {
 }
 

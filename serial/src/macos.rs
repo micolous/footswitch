@@ -28,6 +28,11 @@ use std::os::raw::c_char;
 
 use crate::audio_controller::{AudioControllerTrait, AudioInputDeviceTrait, AudioError};
 
+#[macro_export]
+macro_rules! EXAMPLE_PORT {
+    () => { "/dev/tty.usbmodemHIDPC1" };
+}
+
 pub struct AudioController {
 }
 

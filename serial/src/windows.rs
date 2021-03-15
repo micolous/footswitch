@@ -36,6 +36,11 @@ use winapi::{
     Interface,
 };
 
+#[macro_export]
+macro_rules! EXAMPLE_PORT {
+    () => { "COM4" };
+}
+
 macro_rules! try_com {
 	($expr:expr) => (
         match $expr {
@@ -48,7 +53,6 @@ macro_rules! try_com {
 
 pub struct AudioController {
 }
-
 
 pub struct AudioInputDevice {
     mm_device: *mut IMMDevice,

@@ -1,63 +1,119 @@
-extern crate serial;
+#[macro_use]
+extern crate clap;
 extern crate enigo;
+extern crate serial;
 
-use std::env;
+use std::cmp::{max, min};
 use std::io;
+use std::str::FromStr;
 use std::sync::mpsc;
 use std::thread;
-use std::time::Duration;
-
-use serial::prelude::*;
+use std::time::{Duration, Instant};
 
 use enigo::{Enigo, Key, KeyboardControllable};
+use serial::prelude::*;
 
 mod audio_controller;
-use audio_controller::AudioControllerTrait;
+use audio_controller::{AudioControllerTrait, AudioInputDeviceTrait};
 
+#[macro_use]
 #[cfg_attr(target_os = "macos", path = "macos.rs")]
 #[cfg_attr(target_os = "windows", path = "windows.rs")]
 mod os;
 use os::AudioController;
 
 const KEYCODE : Key = Key::F13;
+const CHANNEL_TIMEOUT : Duration = Duration::from_secs(1);
+const MAX_DEBOUNCE : Duration = Duration::from_secs(10);
+
+pub enum ControllerState {
+    /// The button has been fully released.
+    Released,
+
+    /// The button has just been pressed.
+    Pressed,
+    
+    /// The button is held.
+    Held,
+
+    /// The button has been recently released, and is waiting for debounce.
+    /// The Instant is when the button was released.
+    ReleaseWait(Instant),
+}
 
 pub struct MicController<'a> {
     chan: mpsc::Receiver<bool>,
-    audio: &'a dyn AudioControllerTrait,
-    enigo: Enigo,
+    comms_device: &'a dyn AudioInputDeviceTrait,
+    enigo: Option<Enigo>,
+    debounce: Duration,
+    controller_state: ControllerState,
 }
 
 impl MicController<'_> {
-    pub fn new<T: AudioControllerTrait>(chan: mpsc::Receiver<bool>) -> Self {
+    pub fn new<T: AudioControllerTrait>(
+        chan: mpsc::Receiver<bool>,
+        keyboard_emulation: bool,
+        debounce: Duration,
+    ) -> Self {
+        let audio = Box::leak(T::new());
+        let comms_device = Box::leak(audio.get_comms_device().unwrap());
+        println!("comms_device = {:?}", comms_device);
+        
         MicController {
             chan: chan,
-            audio: Box::leak(T::new()),
-            enigo: Enigo::new(),
+            comms_device: comms_device,
+            enigo: if keyboard_emulation { Some(Enigo::new()) } else { None },
+            debounce: debounce,
+            controller_state: ControllerState::Released,
         }
     }
-    
-    pub fn pumpit(&mut self) {
-        let comms_device = self.audio.get_comms_device().unwrap();
-        println!("comms_device = {:?}", comms_device);
 
+    fn dispatch(&mut self) {
+        match self.controller_state {
+            ControllerState::Pressed => {
+                println!("Button pressing");
+                self.enigo.as_mut().map(|e| e.key_up(KEYCODE));
+                self.comms_device.set_mute(false).unwrap();
+                self.controller_state = ControllerState::Held;
+            },
+            ControllerState::ReleaseWait(released_at) => {
+                if released_at.elapsed() >= self.debounce {
+                    println!("Button releasing");
+                    self.controller_state = ControllerState::Released;
+                    self.enigo.as_mut().map(|e| e.key_down(KEYCODE));
+                    self.comms_device.set_mute(true).unwrap();
+                }
+            },
+            _ => {}
+        }
+    }
+
+    pub fn pumpit(&mut self) {
         loop {
             // TODO: set timeout to be sensible?
-            let res = self.chan.recv_timeout(Duration::from_millis(1000));
+            let res = self.chan.recv_timeout(match self.controller_state {
+                ControllerState::ReleaseWait(released_at) => {
+                    min(
+                        CHANNEL_TIMEOUT,
+                        max(
+                            Duration::from_millis(1),
+                            self.debounce - released_at.elapsed()))
+                },
+                _ => CHANNEL_TIMEOUT
+            });
             match res {
                 Ok(msg) => {
                     if msg {
-                        println!("Button pressed");
-                        //self.enigo.key_down(KEYCODE);
+                        self.controller_state = ControllerState::Pressed;
+                        self.dispatch();
                     } else {
-                        println!("Button released");
-                        //self.enigo.key_up(KEYCODE);
+                        self.controller_state = ControllerState::ReleaseWait(Instant::now());
                     }
-
-                    // TODO: debounce and input emulation
-                    comms_device.set_mute(!msg).expect("set_mute");
                 },
                 Err(error) => match error {
-                    mpsc::RecvTimeoutError::Timeout => continue,
+                    mpsc::RecvTimeoutError::Timeout => {
+                        self.dispatch();
+                    },
                     _ => panic!("recv error: {}", error),
                 }
             }
@@ -67,6 +123,7 @@ impl MicController<'_> {
     }
 }
 
+/// Configures the serial port.
 fn setup<T: SerialPort>(port: &mut T) -> io::Result<()> {
     // 9600 8N1
     port.reconfigure(&|settings| {
@@ -82,6 +139,7 @@ fn setup<T: SerialPort>(port: &mut T) -> io::Result<()> {
     Ok(())
 }
 
+/// Sends events from the serial port to the channel.
 fn interact<T: SerialPort>(port: &mut T, chan: mpsc::Sender<bool>) -> io::Result<()> {
     let mut buf = [0; 1];
     
@@ -108,29 +166,42 @@ fn interact<T: SerialPort>(port: &mut T, chan: mpsc::Sender<bool>) -> io::Result
     }
 }
 
-
 fn main() {
-    let (tx, rx) = mpsc::channel();
-    println!("Hello, world!");
-
-    for arg in env::args_os().skip(1) {
-        println!("Port: {:?}", &arg);
-        let mut port = serial::open(&arg).unwrap();
-        setup(&mut port).unwrap();
-        
-        let serial_thread = thread::spawn(move || {
-            interact(&mut port, tx).unwrap();
-        });
-
-        println!("wait for thread");
-        
-        let mic_thread = thread::spawn(move || {
-            let mut mc = MicController::new::<AudioController>(rx);
-            mc.pumpit();
-        });
-        
-        serial_thread.join().unwrap();
-        mic_thread.join().unwrap();
-        return;
+    let port_help = concat!("Port/path of the footswitch's serial device (eg: ", EXAMPLE_PORT!(), ")");
+    let matches = clap_app!(footswitch =>
+        (version: "0.1")
+        (author: "Michael Farrell <https://github.com/micolous/footswitch>")
+        (about: "Serial control client for a USB footswitch")
+        (@arg DEVICE: +required port_help)
+        (@arg keyboard_emulation: -k --keyboard_emulation "Enables keyboard input emulation")
+        (@arg debounce_duration: -d --debounce_duration +takes_value "Debounce duration, in milliseconds")
+    ).get_matches();
+    
+    let keyboard_emulation = matches.is_present("keyboard_emulation");
+    let serial_device = matches.value_of("DEVICE").unwrap();
+    let debounce_duration = u64::from_str(matches.value_of("debounce_duration").unwrap_or("100")).map(|d| Duration::from_millis(d)).unwrap();
+    if debounce_duration > MAX_DEBOUNCE {
+        panic!("--debounce_duration must be less than or equal to {} milliseconds", MAX_DEBOUNCE.as_millis());
     }
+    
+    let (tx, rx) = mpsc::channel();
+
+    println!("Port: {:?}", serial_device);
+    let mut port = serial::open(serial_device).unwrap();
+    setup(&mut port).unwrap();
+    
+    let serial_thread = thread::spawn(move || {
+        interact(&mut port, tx).unwrap();
+    });
+
+    println!("wait for thread");
+    
+    let mic_thread = thread::spawn(move || {
+        let mut mc = MicController::new::<AudioController>(rx, keyboard_emulation, debounce_duration);
+        mc.pumpit();
+    });
+    
+    serial_thread.join().unwrap();
+    mic_thread.join().unwrap();
+
 }
