@@ -26,6 +26,7 @@ const KEYCODE : Key = Key::F13;
 const CHANNEL_TIMEOUT : Duration = Duration::from_secs(1);
 const MAX_DEBOUNCE : Duration = Duration::from_secs(10);
 
+#[derive(Debug, PartialEq)]
 pub enum ControllerState {
     /// The button has been fully released.
     Released,
@@ -104,11 +105,15 @@ impl MicController<'_> {
             match res {
                 Ok(msg) => {
                     if msg {
-                        self.controller_state = ControllerState::Pressed;
-                        self.dispatch();
+                        match self.controller_state {
+                            ControllerState::Released => self.controller_state = ControllerState::Pressed,
+                            ControllerState::ReleaseWait(_) => self.controller_state = ControllerState::Held,
+                            _ => {},
+                        }
                     } else {
                         self.controller_state = ControllerState::ReleaseWait(Instant::now());
                     }
+                    self.dispatch();
                 },
                 Err(error) => match error {
                     mpsc::RecvTimeoutError::Timeout => {
