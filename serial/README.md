@@ -21,14 +21,27 @@ Events will only be sent if the button state changes.
 
 ## Client
 
-The client is being rewritten in Rust; the Python version will go away once it reaches parity.
+> **Danger: Here be dragons!**
+>
+> If you want _simple_, run [the `keyboard` version of the Arduino code](../keyboard/). That doesn't require any extra software to work.
+>
+> This is intended for advanced use cases only, such as automatic microphone mute control.
+>
+> The client is currently **incomplete**.  It is being rewritten in Rust, and the Python version will go away once it reaches parity.
 
-The client has two jobs:
+The client listens to a serial port running the `keyboard.ino` or `serial.ino` code, and has three jobs:
 
-* send a simulated `F13` keypress (only needed for serial-only Arduino devices)
-* control the mute state of your microphone
+* debounce button presses
 
-Unfortunately the simulated keypresses only don't work with Discord on macOS, due to how it captures global hotkeys.  If you run macOS, make sure your Arduino does native USB!
+* control the mute state of your default microphone device
+
+  This is useful for microphones that have a monitor output that follows the microphone's mute state – so you won't hear yourself unless the PTT button is held.
+
+* (optionally) send a simulated <kbd>F13</kbd> keypress
+
+  This is only needed for serial-only Arduino devices, and is _disabled by default_.
+
+  This doesn't work with Discord on macOS, because of the way it captures global hotkeys.
 
 ### Building the Rust client
 
@@ -45,12 +58,12 @@ This will give you an executable in `./target/release/footswitch_serial` (or `fo
 
 ### Old Python client (Windows-only)
 
+**Deprecated**: This will be deleted in future, once the Rust version reaches parity.
+
 Requirements:
 
 * Python 3.8 or later
 * pycaw (plus patches that are only in `develop` branch)
 * [pywin32][]
 
-
 [pywin32]: https://github.com/mhammond/pywin32
-

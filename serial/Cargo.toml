@@ -3,13 +3,15 @@ name = "footswitch_serial"
 version = "0.1.0"
 authors = ["micolous"]
 edition = "2018"
+homepage = "https://github.com/micolous/footswitch"
+license = "Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 clap = "~2.33.3"
 serial = "0.4"
-# TODO: upstream patch
+# TODO: https://github.com/enigo-rs/enigo/pull/109
 enigo = { path = "../../enigo" }
 
 [target.'cfg(target_os = "macos")'.dependencies]

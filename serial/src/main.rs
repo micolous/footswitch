@@ -33,7 +33,7 @@ pub enum ControllerState {
 
     /// The button has just been pressed.
     Pressed,
-    
+
     /// The button is held.
     Held,
 
@@ -59,7 +59,7 @@ impl MicController<'_> {
         let audio = Box::leak(T::new());
         let comms_device = Box::leak(audio.get_comms_device().unwrap());
         println!("comms_device = {:?}", comms_device);
-        
+
         MicController {
             chan: chan,
             comms_device: comms_device,
@@ -136,7 +136,7 @@ fn setup<T: SerialPort>(port: &mut T) -> io::Result<()> {
         settings.set_flow_control(serial::FlowHardware);
         Ok(())
     })?;
-    
+
     port.set_timeout(Duration::from_millis(1000))?;
     Ok(())
 }
@@ -144,7 +144,7 @@ fn setup<T: SerialPort>(port: &mut T) -> io::Result<()> {
 /// Sends events from the serial port to the channel.
 fn interact<T: SerialPort>(port: &mut T, chan: mpsc::Sender<bool>) -> io::Result<()> {
     let mut buf = [0; 1];
-    
+
     loop {
         let res = port.read(&mut buf[..]);
         match res {
@@ -162,7 +162,6 @@ fn interact<T: SerialPort>(port: &mut T, chan: mpsc::Sender<bool>) -> io::Result
             Err(error) => match error.kind() {
                 io::ErrorKind::TimedOut => continue,
                 _ => return Err(error)
-                
             }
         }
     }
@@ -178,31 +177,31 @@ fn main() {
         (@arg keyboard_emulation: -k --keyboard_emulation "Enables keyboard input emulation")
         (@arg debounce_duration: -d --debounce_duration +takes_value "Debounce duration, in milliseconds")
     ).get_matches();
-    
+
     let keyboard_emulation = matches.is_present("keyboard_emulation");
     let serial_device = matches.value_of("DEVICE").unwrap();
     let debounce_duration = u64::from_str(matches.value_of("debounce_duration").unwrap_or("100")).map(|d| Duration::from_millis(d)).unwrap();
     if debounce_duration > MAX_DEBOUNCE {
         panic!("--debounce_duration must be less than or equal to {} milliseconds", MAX_DEBOUNCE.as_millis());
     }
-    
+
     let (tx, rx) = mpsc::channel();
 
     println!("Port: {:?}", serial_device);
     let mut port = serial::open(serial_device).unwrap();
     setup(&mut port).unwrap();
-    
+
     let serial_thread = thread::spawn(move || {
         interact(&mut port, tx).unwrap();
     });
 
     println!("wait for thread");
-    
+
     let mic_thread = thread::spawn(move || {
         let mut mc = MicController::new::<AudioController>(rx, keyboard_emulation, debounce_duration);
         mc.pumpit();
     });
-    
+
     serial_thread.join().unwrap();
     mic_thread.join().unwrap();
 
