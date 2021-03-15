@@ -1,57 +1,71 @@
 /*
-  Input Pull-up Serial + Debounce
+ * footswitch/serial/serial.ino
+ * USB Serial footswtich controller firmware.
+ * https://github.com/micolous/footswitch
+ *
+ * Copyright 2021 Michael Farrell <micolous+git@gmail.com>
+ * Based on Arduino's InputPullupSerial example, by Scott Fitzgerald.
+ *
+ * This Arduino code is released into the public domain, or can be used under
+ * the Creative Commons Zero or Apache 2 licenses (your choice).
+ *
+ * Connect the switch between digital pin 2 and ground. When connected, this
+ * will:
+ *
+ * - Send a "1" via serial
+ * - Turns on the LED (pin 13)
+ *
+ * When released, this will:
+ *
+ * - Send a "0" via serial
+ * - Turns off the LED (pin 13)
+ *
+ * On "Pro Micro" boards, this uses the RX LED (pin 17) instead.
+ */
 
-  This example demonstrates the use of pinMode(INPUT_PULLUP). It reads a digital
-  input on pin 2 and prints the results to the Serial Monitor.
+// ** CONFIGURATION PARAMETERS **
 
-  The circuit:
-  - momentary switch attached from pin 2 to ground
-  - built-in LED on pin 13
+// Input pin for the footswitch. Connect to the other side of the switch to
+// ground.
+const int buttonPin = 2;
 
-  Unlike pinMode(INPUT), there is no pull-down resistor necessary. An internal
-  20K-ohm resistor is pulled to 5V. This configuration causes the input to read
-  HIGH when the switch is open, and LOW when it is closed.
-
-  created 14 Mar 2012
-  by Scott Fitzgerald
-  modified Jan 2021 by Michael Farrell <micolous+git@gmail.com>
-
-  This example code is in the public domain.
-
-  http://www.arduino.cc/en/Tutorial/InputPullupSerial
-*/
-
-const int buttonPin = 2;    // the number of the pushbutton pin
+// Output pin for the LED.
 #ifdef ARDUINO_AVR_PROMICRO
 // "Pro Micro" boards don't have an LED wired to the "usual" pin 13,
 // use the RX LED (17) instead.
 // https://learn.sparkfun.com/tutorials/pro-micro--fio-v3-hookup-guide/example-1-blinkies
 const int ledPin = 17;
 #else
+// Use default LED pin, this is pin 13 on most boards.
 const int ledPin = LED_BUILTIN;
 #endif
 
-int ledState = LOW;          // the current state of the output pin
-int buttonState;             // the current reading from the input pin
-int lastButtonState = LOW;   // the previous reading from the input pin
+// Debounce time for the input pin, in milliseconds.
+// Increase if the input "flickers".
+const unsigned long debounceDelay = 50;
 
-// the following variables are unsigned longs because the time, measured in
-// milliseconds, will quickly become a bigger number than can be stored in an int.
-unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
-unsigned long debounceDelay = 50;    // the debounce time; increase if the output flickers
+// ** END CONFIGURATION PARAMETERS **
 
+// The current state of the output pin.
+int ledState = LOW;
+// The current reading from the input pin.
+int buttonState;
+// The previous reading from the input pin.
+int lastButtonState = LOW;
+// The last time the output pin was toggled.
+unsigned long lastDebounceTime = 0;
 
 void setup() {
-  //start serial connection
-  Serial.begin(9600);
-
-  //configure pin 2 as an input and enable the internal pull-up resistor
+  // Configure input pin and enable the internal pull-up resistor
   pinMode(buttonPin, INPUT_PULLUP);
   pinMode(ledPin, OUTPUT);
+
+  // Start serial connection
+  Serial.begin(9600);
 }
 
 void loop() {
-  //read the pushbutton value into a variable
+  // Read the button state into a variable.
   int sensorVal = digitalRead(2);
 
   // check to see if you just pressed the button
@@ -75,6 +89,7 @@ void loop() {
       // Keep in mind the pull-up means the pushbutton's logic is inverted. It goes
       // HIGH when it's open, and LOW when it's pressed.
       Serial.print(buttonState == LOW ? "1" : "0");
+
 #ifdef ARDUINO_AVR_PROMICRO
       // Pro Micro has inverted LED state (LOW = on)
       ledState = buttonState == HIGH;
