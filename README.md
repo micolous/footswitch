@@ -4,17 +4,19 @@
 
 `footswitch` is a 1-key keyboard for push-to-talk in Discord (and other voice-chat apps), based on [Arduino][], that you can build yourself.
 
+![Footswitch built on Pro Micro](./images/pro-micro-footswitch.jpg)
+
 ## Parts list
 
-* An Arduino (ATmega32U4 recommended).
+* **An Arduino (ATmega32U4 strongly recommended).**
 
   Small Arduino boards based on ATmega32U4 without headers, such as the [Arduino Micro][] are best, because this gives you the most options. Similar third-party boards based on the ATmega32U4 like [Adafruit's ItsyBitsy 32U4][adafruit] and [SparkFun Pro Micro][] should also work.
 
-  _Avoid_ the serial-only boards that have a USB-TTL chip (eg: CH341, FT232R, PL2303) because they only work as a USB serial device, and require drivers.
+  _Avoid_ the serial-only boards that have a USB-TTL chip (eg: CH341, FT232R, PL2303) because they only work as a USB serial device, require drivers and a client to simulate keypresses (which [doesn't work reliably on macOS](#macos-notes)).
 
   Arduino boards that _only_ support "USB programming" _won't work at all_. This only affects some old, third-party boards.
 
-* A foot / pedal switch.
+* **A foot / pedal switch.**
 
   This should have two or three wires, and close the circuit when the switch is pressed.
 
@@ -22,11 +24,15 @@
   
   Using a higher rated switch (eg: 240V 10A) is fine, and probably mechanically-ideal for something you're going to push with your foot!
 
-* Clear heat-shrink (optional).
+* **Clear heat-shrink (optional).**
 
   If you have a small Arduino board without pin headers, you can wrap it with clear heat shrink to prevent it shorting on things.
 
-If you don't have a soldering iron, you'll need to get a board with headers, and a switch with appropriate connectors.
+  You'll also need a **heat gun**, **butane torch** or **lighter** to melt the heatshrink.
+
+  Tip: heatshrink sizes are the circular diameter of the heatshrink. When laid flat (to go over a board), this is about half the circumference (ie: `W = D * π / 2`) – so 16mm heatshrink is about 25mm wide!
+
+If you _don't_ have a **soldering iron**, you'll need to get a board with headers, and a switch with appropriate connectors.
 
 ## Wiring the board
 
@@ -94,7 +100,13 @@ The first time you use the device on macOS, [Keyboard Set-up Assistant][] will p
 
 **This requires a "client" to work** -- this is a Python script that runs on your computer, and listens to the Arduino's serial port for button press and release events. Whenever it gets one, it simulates a keypress event, as if you pressed a key on a real keyboard.
 
-This requires different versions of the client for each platform (currently there is only a Windows version).
+#### macOS notes
+
+Using simulated keypresses (for the serial version) requires access to `Accessibility` APIs (`System Preferences` -> `Privacy` -> `Accessibility`).
+
+Discord for macOS **does not** support using simulated keypresses to trigger hotkeys. This is because Discord captures global hotkeys in a way that _doesn't_ support accessibility APIs. :(
+
+Most other applications support simulated keypresses, so will work fine.
 
 ## Setting up Discord
 
@@ -109,14 +121,6 @@ In Discord:
 5. Press the footswitch
 
 At this point, the shortcut should show up as `F13`.
-
-### macOS notes
-
-Using simulated keypresses (for the serial version) requires access to `Accessibility` APIs (`System Preferences` -> `Privacy` -> `Accessibility`).
-
-Discord for macOS **does not** support using simulated keypresses to trigger hotkeys. This is because Discord captures global hotkeys in a way that _doesn't_ support accessibility APIs. :(
-
-Most other applications support simulated keypresses, so will work fine.
 
 ## License and acknowledgements
 

@@ -23,8 +23,24 @@ Events will only be sent if the button state changes.
 
 The client is being rewritten in Rust; the Python version will go away once it reaches parity.
 
+The client has two jobs:
 
+* send a simulated `F13` keypress (only needed for serial-only Arduino devices)
+* control the mute state of your microphone
 
+Unfortunately the simulated keypresses only don't work with Discord on macOS, due to how it captures global hotkeys.  If you run macOS, make sure your Arduino does native USB!
+
+### Building the Rust client
+
+**Note:** When this is a bit more stable, there'll be Windows release binaries available.
+
+You'll need to [install a Rust toolchain](https://www.rust-lang.org/tools/install), then run:
+
+```sh
+cargo build --release
+```
+
+This will give you an executable in `target/`
 
 ### Old Python client (Windows-only)
 
