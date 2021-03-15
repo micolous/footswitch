@@ -91,7 +91,6 @@ impl MicController<'_> {
 
     pub fn pumpit(&mut self) {
         loop {
-            // TODO: set timeout to be sensible?
             let res = self.chan.recv_timeout(match self.controller_state {
                 ControllerState::ReleaseWait(released_at) => {
                     min(
@@ -122,8 +121,6 @@ impl MicController<'_> {
                     _ => panic!("recv error: {}", error),
                 }
             }
-            
-            // TODO: other stuff
         }
     }
 }
