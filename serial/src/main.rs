@@ -174,13 +174,13 @@ fn main() {
         (author: "Michael Farrell <https://github.com/micolous/footswitch>")
         (about: "Serial control client for a USB footswitch")
         (@arg DEVICE: +required port_help)
-        (@arg keyboard_emulation: -k --keyboard_emulation "Enables keyboard input emulation")
-        (@arg debounce_duration: -d --debounce_duration +takes_value "Debounce duration, in milliseconds")
+        (@arg keyboard_emulation: -k --keyboard "Enables keyboard input emulation; only needed for serial.ino")
+        (@arg debounce_duration: -d --debounce default_value("100") value_name("MSEC") "Debounce duration, in milliseconds")
     ).get_matches();
 
     let keyboard_emulation = matches.is_present("keyboard_emulation");
     let serial_device = matches.value_of("DEVICE").unwrap();
-    let debounce_duration = u64::from_str(matches.value_of("debounce_duration").unwrap_or("100")).map(|d| Duration::from_millis(d)).unwrap();
+    let debounce_duration = u64::from_str(matches.value_of("debounce_duration").unwrap()).map(|d| Duration::from_millis(d)).unwrap();
     if debounce_duration > MAX_DEBOUNCE {
         panic!("--debounce_duration must be less than or equal to {} milliseconds", MAX_DEBOUNCE.as_millis());
     }
