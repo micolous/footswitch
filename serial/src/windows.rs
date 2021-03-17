@@ -104,14 +104,14 @@ impl AudioControllerTrait for AudioController {
 }
 
 impl AudioInputDevice {
-    fn new(mm_device: *mut IMMDevice) -> Result<WindowsAudioInputDevice, AudioError> {
+    fn new(mm_device: *mut IMMDevice) -> Result<AudioInputDevice, AudioError> {
         // Read properties
         let props = AudioInputDevice::open_property_store(mm_device)?;
         
         Ok(AudioInputDevice {
             mm_device: mm_device,
-            name: WindowsAudioInputDevice::get_property_value(props, &PKEY_Device_FriendlyName)?,
-            audio_endpoint_volume: WindowsAudioInputDevice::get_endpoint_volume(mm_device)?,
+            name: AudioInputDevice::get_property_value(props, &PKEY_Device_FriendlyName)?,
+            audio_endpoint_volume: AudioInputDevice::get_endpoint_volume(mm_device)?,
         })
     }
     
