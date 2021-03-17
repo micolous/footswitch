@@ -168,9 +168,13 @@ fn main() {
     let keyboard_emulation = matches.is_present("keyboard_emulation");
     if !matches.is_present("DEVICE") {
         println!("No device specified. Available serial ports:");
-        let ports = serialport::available_ports().expect("No serial ports found");
-        for p in ports {
-            println!("  {}", p.port_name);
+        let ports = serialport::available_ports().expect("Cannot enumerate serial ports!");
+        if ports.len() == 0 {
+            println!("No serial ports found!");
+        } else {
+            for p in ports {
+                println!("* {}", p.port_name);
+            }                
         }
         return;
     }
