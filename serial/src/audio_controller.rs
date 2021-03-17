@@ -13,7 +13,9 @@ pub trait AudioInputDeviceTrait {
 }
 
 pub trait AudioControllerTrait {
-    fn new() -> Box<dyn AudioControllerTrait> where Self: Sized;
+    fn new() -> Box<dyn AudioControllerTrait>
+    where
+        Self: Sized;
     fn get_comms_device(&self) -> Result<Box<dyn AudioInputDeviceTrait>, AudioError>;
 }
 
@@ -26,7 +28,7 @@ impl Display for dyn AudioInputDeviceTrait {
 impl Debug for dyn AudioInputDeviceTrait {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
         f.debug_struct("AudioInputDevice")
-         .field("name", &self.name().unwrap())
-         .finish()
+            .field("name", &self.name().unwrap())
+            .finish()
     }
 }

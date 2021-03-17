@@ -1,62 +1,60 @@
-extern crate coreaudio;
 extern crate core_foundation_sys;
+extern crate coreaudio;
 
-use coreaudio::sys::{
-    AudioDeviceSetProperty,
-    AudioObjectGetPropertyData,
-    AudioObjectPropertyAddress,
-    AudioDeviceID,
-    kAudioObjectPropertyScopeGlobal,
-    kAudioHardwarePropertyDefaultInputDevice,
-    kAudioHardwareNoError,
-    kAudioObjectSystemObject,
-    kAudioDevicePropertyMute,
-    kAudioObjectPropertyElementMaster,
-    kAudioDevicePropertyScopeOutput,
-    kAudioDevicePropertyDeviceNameCFString,
-};
 use core_foundation_sys::string::{
-    CFStringGetCString,
-    CFStringGetCStringPtr,
-    CFStringRef,
-    kCFStringEncodingUTF8
+    kCFStringEncodingUTF8, CFStringGetCString, CFStringGetCStringPtr, CFStringRef,
+};
+use coreaudio::sys::{
+    kAudioDevicePropertyDeviceNameCFString, kAudioDevicePropertyMute,
+    kAudioDevicePropertyScopeOutput, kAudioHardwareNoError,
+    kAudioHardwarePropertyDefaultInputDevice, kAudioObjectPropertyElementMaster,
+    kAudioObjectPropertyScopeGlobal, kAudioObjectSystemObject, AudioDeviceID,
+    AudioDeviceSetProperty, AudioObjectGetPropertyData, AudioObjectPropertyAddress,
 };
 use std::ffi::CStr;
-use std::ptr::null;
 use std::mem;
 use std::os::raw::c_char;
+use std::ptr::null;
 
-use crate::audio_controller::{AudioControllerTrait, AudioInputDeviceTrait, AudioError};
+use crate::audio_controller::{AudioControllerTrait, AudioError, AudioInputDeviceTrait};
 
 #[macro_export]
 macro_rules! EXAMPLE_PORT {
-    () => { "/dev/tty.usbmodemHIDPC1" };
+    () => {
+        "/dev/tty.usbmodemHIDPC1"
+    };
 }
 
-pub struct AudioController {
-}
+pub struct AudioController {}
 
 pub struct AudioInputDevice {
     audio_device_id: AudioDeviceID,
 }
 
 macro_rules! try_cf {
-	($expr:expr) => (
+    ($expr:expr) => {
         #[allow(non_upper_case_globals)]
         match $expr as u32 {
             kAudioHardwareNoError => (),
-            _ => return Err(AudioError { msg: format!("Error: {}", coreaudio::Error::from_os_status($expr).err().unwrap()) }),
-		}
-    )
+            _ => {
+                return Err(AudioError {
+                    msg: format!(
+                        "Error: {}",
+                        coreaudio::Error::from_os_status($expr).err().unwrap()
+                    ),
+                })
+            }
+        }
+    };
 }
 
 // Implementation largely copied from cpal
 
 impl AudioControllerTrait for AudioController {
     fn new() -> Box<dyn AudioControllerTrait> {
-        Box::new(AudioController { })
+        Box::new(AudioController {})
     }
-    
+
     fn get_comms_device(&self) -> Result<Box<dyn AudioInputDeviceTrait>, AudioError> {
         let property_address = AudioObjectPropertyAddress {
             mSelector: kAudioHardwarePropertyDefaultInputDevice,
@@ -77,10 +75,14 @@ impl AudioControllerTrait for AudioController {
             )
         };
         if status != kAudioHardwareNoError as i32 {
-            return Err(AudioError{ msg: format!("Error: 0x{:X}", status) });
+            return Err(AudioError {
+                msg: format!("Error: 0x{:X}", status),
+            });
         }
 
-        Ok(Box::new(AudioInputDevice { audio_device_id: audio_device_id }))
+        Ok(Box::new(AudioInputDevice {
+            audio_device_id: audio_device_id,
+        }))
     }
 }
 
@@ -121,8 +123,9 @@ impl AudioInputDeviceTrait for AudioInputDevice {
                     kCFStringEncodingUTF8,
                 );
                 if result == 0 {
-                    return Err(AudioError { msg:
-                        "CFStringGetCString failed to return device name string".to_string() });
+                    return Err(AudioError {
+                        msg: "CFStringGetCString failed to return device name string".to_string(),
+                    });
                 }
                 let name: &CStr = CStr::from_ptr(buf.as_ptr());
                 return Ok(name.to_str().unwrap().to_owned());
@@ -131,7 +134,7 @@ impl AudioInputDeviceTrait for AudioInputDevice {
         };
         Ok(c_str.to_string_lossy().into_owned())
     }
-    
+
     fn set_mute(&self, state: bool) -> Result<bool, AudioError> {
         let cf_state = state as u32;
         let data_size = mem::size_of::<u32>() as u32;
