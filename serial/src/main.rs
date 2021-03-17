@@ -133,7 +133,7 @@ fn setup<T: SerialPort>(port: &mut T) -> io::Result<()> {
         settings.set_char_size(serial::Bits8);
         settings.set_parity(serial::ParityNone);
         settings.set_stop_bits(serial::Stop1);
-        settings.set_flow_control(serial::FlowHardware);
+        settings.set_flow_control(serial::FlowNone);
         Ok(())
     })?;
 
