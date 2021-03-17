@@ -20,7 +20,7 @@ pub struct AudioInputDevice {
 
 impl AudioControllerTrait for AudioController {
     fn new() -> Box<dyn AudioControllerTrait> {
-        print!("Using fake audio controller device!\n");
+        println!("Using fake audio controller device!");
         Box::new(AudioController { })
     }
     

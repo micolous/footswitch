@@ -14,7 +14,7 @@ use enigo::{Enigo, Key, KeyboardControllable};
 use serial::prelude::*;
 
 mod audio_controller;
-use audio_controller::{AudioControllerTrait, AudioInputDeviceTrait};
+use audio_controller::{AudioControllerTrait, AudioInputDeviceTrait, AudioError};
 
 #[macro_use]
 #[cfg_attr(target_os = "macos", path = "macos.rs")]
@@ -58,7 +58,6 @@ impl MicController<'_> {
     ) -> Self {
         let audio = Box::leak(T::new());
         let comms_device = Box::leak(audio.get_comms_device().unwrap());
-        println!("comms_device = {:?}", comms_device);
 
         MicController {
             chan: chan,
@@ -67,6 +66,10 @@ impl MicController<'_> {
             debounce: debounce,
             controller_state: ControllerState::Released,
         }
+    }
+
+    pub fn device_name(&self) -> Result<String, AudioError> {
+        self.comms_device.name()
     }
 
     fn dispatch(&mut self) {
@@ -182,12 +185,14 @@ fn main() {
     let serial_device = matches.value_of("DEVICE").unwrap();
     let debounce_duration = u64::from_str(matches.value_of("debounce_duration").unwrap()).map(|d| Duration::from_millis(d)).unwrap();
     if debounce_duration > MAX_DEBOUNCE {
-        panic!("--debounce_duration must be less than or equal to {} milliseconds", MAX_DEBOUNCE.as_millis());
+        panic!("--debounce must be less than or equal to {} milliseconds", MAX_DEBOUNCE.as_millis());
     }
 
     let (tx, rx) = mpsc::channel();
 
-    println!("Port: {:?}", serial_device);
+    println!("Serial port: {}", serial_device);
+    println!("Keyboard emulation: {}", if keyboard_emulation {"on"} else {"off"});
+    println!("Debounce: {} ms", debounce_duration.as_millis());
     let mut port = serial::open(serial_device).unwrap();
     setup(&mut port).unwrap();
 
@@ -195,14 +200,10 @@ fn main() {
         interact(&mut port, tx).unwrap();
     });
 
-    println!("wait for thread");
-
-    let mic_thread = thread::spawn(move || {
-        let mut mc = MicController::new::<AudioController>(rx, keyboard_emulation, debounce_duration);
-        mc.pumpit();
-    });
+    let mut mc = MicController::new::<AudioController>(rx, keyboard_emulation, debounce_duration);
+    println!("Microphone device: {}", mc.device_name().unwrap());
+    println!("Ready, waiting for footswitch press...");
+    mc.pumpit();
 
     serial_thread.join().unwrap();
-    mic_thread.join().unwrap();
-
 }
