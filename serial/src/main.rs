@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate clap;
 extern crate enigo;
-extern crate serial;
+extern crate serialport;
 
 use std::cmp::{max, min};
 use std::io;
@@ -11,7 +11,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use enigo::{Enigo, Key, KeyboardControllable};
-use serial::prelude::*;
+use serialport::SerialPort;
 
 mod audio_controller;
 use audio_controller::{AudioControllerTrait, AudioInputDeviceTrait, AudioError};
@@ -128,24 +128,8 @@ impl MicController<'_> {
     }
 }
 
-/// Configures the serial port.
-fn setup<T: SerialPort>(port: &mut T) -> io::Result<()> {
-    // 9600 8N1
-    port.reconfigure(&|settings| {
-        settings.set_baud_rate(serial::Baud9600)?;
-        settings.set_char_size(serial::Bits8);
-        settings.set_parity(serial::ParityNone);
-        settings.set_stop_bits(serial::Stop1);
-        settings.set_flow_control(serial::FlowNone);
-        Ok(())
-    })?;
-
-    port.set_timeout(Duration::from_millis(1000))?;
-    Ok(())
-}
-
 /// Sends events from the serial port to the channel.
-fn interact<T: SerialPort>(port: &mut T, chan: mpsc::Sender<bool>) -> io::Result<()> {
+fn interact(mut port: Box<dyn SerialPort>, chan: mpsc::Sender<bool>) -> io::Result<()> {
     let mut buf = [0; 1];
 
     loop {
@@ -176,12 +160,21 @@ fn main() {
         (version: "0.1")
         (author: "Michael Farrell <https://github.com/micolous/footswitch>")
         (about: "Serial control client for a USB footswitch")
-        (@arg DEVICE: +required port_help)
+        (@arg DEVICE: port_help)
         (@arg keyboard_emulation: -k --keyboard "Enables keyboard input emulation; only needed for serial.ino")
         (@arg debounce_duration: -d --debounce default_value("100") value_name("MSEC") "Debounce duration, in milliseconds")
     ).get_matches();
 
     let keyboard_emulation = matches.is_present("keyboard_emulation");
+    if !matches.is_present("DEVICE") {
+        println!("No device specified. Available serial ports:");
+        let ports = serialport::available_ports().expect("No serial ports found");
+        for p in ports {
+            println!("  {}", p.port_name);
+        }
+        return;
+    }
+    
     let serial_device = matches.value_of("DEVICE").unwrap();
     let debounce_duration = u64::from_str(matches.value_of("debounce_duration").unwrap()).map(|d| Duration::from_millis(d)).unwrap();
     if debounce_duration > MAX_DEBOUNCE {
@@ -193,11 +186,12 @@ fn main() {
     println!("Serial port: {}", serial_device);
     println!("Keyboard emulation: {}", if keyboard_emulation {"on"} else {"off"});
     println!("Debounce: {} ms", debounce_duration.as_millis());
-    let mut port = serial::open(serial_device).unwrap();
-    setup(&mut port).unwrap();
+    let port = serialport::new(serial_device, 9600)
+        .timeout(CHANNEL_TIMEOUT)
+        .open().expect("Failed to open port");
 
     let serial_thread = thread::spawn(move || {
-        interact(&mut port, tx).unwrap();
+        interact(port, tx).unwrap();
     });
 
     let mut mc = MicController::new::<AudioController>(rx, keyboard_emulation, debounce_duration);
