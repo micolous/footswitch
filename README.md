@@ -80,7 +80,7 @@ Building and uploading the Arduino code requires the [Arduino IDE][Arduino].
 
 2. For safety, temporarily disconnect any _other_ Arduino boards (or USB serial devices) you have connected to your computer.
 
-3. Open `keyboard/keyboard.ino` or `serial/serial.ino` in the Arduino IDE.
+3. Open [keyboard/keyboard.ino](./keyboard/keyboard.ino) or [serial/serial.ino](./serial/serial.ino) in the Arduino IDE.
 
 4. In Arduino IDE's `Tools` menu, select the correct `Board`, `Processor` and (serial) `Port`.
 
@@ -90,7 +90,7 @@ Building and uploading the Arduino code requires the [Arduino IDE][Arduino].
 
 5. Press the `Upload` button (or `Sketch` → `Upload`).
 
-### keyboard version
+### [keyboard version](./keyboard/) (recommended)
 
 * **Arduino support**: ATmega32U4 and SAMD-based boards which support the [USB Keyboard Library][keyboard].
 * [**Serial client**: optional](#client)
@@ -102,11 +102,15 @@ It _also_ exposes a USB serial device (CDC ACM) which _can_ work with the serial
 
 The first time you use the device on macOS, [Keyboard Set-up Assistant][] will pop up.  Press any key on _any_ keyboard to skip the auto-detection process, and then set the keyboard type to `ANSI`.
 
-### serial version
+### [serial version](./serial/)
 
 * **Ardiuno support**: Any that provide a serial connection.
 * [**Serial client**: required](#client)
 * **OS support**: macOS (limited), Windows
+
+This version acts as a serial device, and requires a client to convert this into keypresses.
+
+This is provided for experiments – if you happen to have an Arduino that you want to try this out on, but its microcontroller doesn't support USB.
 
 ## Client
 
