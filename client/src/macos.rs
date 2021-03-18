@@ -107,14 +107,8 @@ impl AudioInputDeviceTrait for AudioInputDevice {
 
             let c_string: *const c_char = CFStringGetCStringPtr(device_name, kCFStringEncodingUTF8);
             if c_string.is_null() {
-                try_cf!(AudioObjectGetPropertyData(
-                    self.audio_device_id,
-                    &property_address as *const _,
-                    0,
-                    null(),
-                    &data_size as *const _ as *mut _,
-                    &device_name as *const _ as *mut _,
-                ));
+                // The name could not be returned "efficiently", make a new buffer to try.
+                // https://developer.apple.com/documentation/corefoundation/1542133-cfstringgetcstringptr
                 let mut buf: [i8; 255] = [0; 255];
                 let result = CFStringGetCString(
                     device_name,
@@ -127,10 +121,10 @@ impl AudioInputDeviceTrait for AudioInputDevice {
                         msg: "CFStringGetCString failed to return device name string".to_string(),
                     });
                 }
-                let name: &CStr = CStr::from_ptr(buf.as_ptr());
-                return Ok(name.to_str().unwrap().to_owned());
+                CStr::from_ptr(buf.as_ptr())
+            } else {
+                CStr::from_ptr(c_string as *mut _)
             }
-            CStr::from_ptr(c_string as *mut _)
         };
         Ok(c_str.to_string_lossy().into_owned())
     }

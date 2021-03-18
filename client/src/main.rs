@@ -25,6 +25,7 @@ use os::AudioController;
 const KEYCODE: Key = Key::F13;
 const CHANNEL_TIMEOUT: Duration = Duration::from_secs(1);
 const MAX_DEBOUNCE: Duration = Duration::from_secs(10);
+const DEFAULT_DEBOUNCE: Duration = Duration::from_millis(100);
 
 #[derive(Debug, PartialEq)]
 pub enum ControllerState {
@@ -82,31 +83,34 @@ impl MicController<'_> {
         }
     }
 
-    fn dispatch(&mut self) {
+    fn dispatch(&mut self) -> Result<(), AudioError> {
         match self.controller_state {
             ControllerState::Pressed => {
                 println!("Button pressing");
-                self.enigo.as_mut().map(|e| e.key_up(KEYCODE));
-                self.comms_device
-                    .as_mut()
-                    .map(|c| c.set_mute(false).unwrap());
                 self.controller_state = ControllerState::Held;
+                self.enigo.as_mut().map(|e| e.key_up(KEYCODE));
+                return match self.comms_device {
+                    Some(c) => c.set_mute(false).map(|_| ()),
+                    None => Ok(()),
+                };
             }
             ControllerState::ReleaseWait(released_at) => {
                 if released_at.elapsed() >= self.debounce {
                     println!("Button releasing");
                     self.controller_state = ControllerState::Released;
                     self.enigo.as_mut().map(|e| e.key_down(KEYCODE));
-                    self.comms_device
-                        .as_mut()
-                        .map(|c| c.set_mute(true).unwrap());
+                    return match self.comms_device {
+                        Some(c) => c.set_mute(true).map(|_| ()),
+                        None => Ok(()),
+                    };
                 }
             }
             _ => {}
         }
+        Ok(())
     }
 
-    pub fn pumpit(&mut self) {
+    pub fn pumpit(&mut self) -> Result<(), AudioError> {
         loop {
             let res = self.chan.recv_timeout(match self.controller_state {
                 ControllerState::ReleaseWait(released_at) => min(
@@ -133,13 +137,16 @@ impl MicController<'_> {
                     } else {
                         self.controller_state = ControllerState::ReleaseWait(Instant::now());
                     }
-                    self.dispatch();
+                    self.dispatch()?;
                 }
                 Err(error) => match error {
                     mpsc::RecvTimeoutError::Timeout => {
-                        self.dispatch();
+                        self.dispatch()?;
                     }
-                    _ => panic!("recv error: {}", error),
+                    _ => {
+                        // The other side has probably gone away!
+                        return Ok(());
+                    }
                 },
             }
         }
@@ -147,7 +154,7 @@ impl MicController<'_> {
 }
 
 /// Sends events from the serial port to the channel.
-fn interact(mut port: Box<dyn SerialPort>, chan: mpsc::Sender<bool>) -> io::Result<()> {
+fn interact(mut port: Box<dyn SerialPort>, chan: mpsc::Sender<bool>) {
     let mut buf = [0; 1];
 
     loop {
@@ -155,19 +162,32 @@ fn interact(mut port: Box<dyn SerialPort>, chan: mpsc::Sender<bool>) -> io::Resu
         match res {
             Ok(len) => {
                 if len == 1 {
-                    chan.send(match buf[0] {
+                    match chan.send(match buf[0] {
                         b'0' => false,
                         b'1' => true,
-                        _ => panic!("unhandled serial input: {}", buf[0]),
-                    })
-                    .expect("channel error");
+                        _ => {
+                            println!("Unhandled serial input: {}", buf[0]);
+                            return;
+                        }
+                    }) {
+                        Ok(()) => {}
+                        Err(_) => {
+                            // Other end of the channel has probably gone away.
+                            // Shut down the thread.
+                            return;
+                        }
+                    }
                 } else {
-                    panic!("unhandled serial input: {:?}", &buf[..len])
+                    println!("Unhandled serial input length ({}): {:?}", len, &buf[..len]);
+                    return;
                 }
             }
             Err(error) => match error.kind() {
                 io::ErrorKind::TimedOut => continue,
-                _ => return Err(error),
+                _ => {
+                    println!("Error reading serial device: {:?}", error);
+                    return;
+                }
             },
         }
     }
@@ -179,41 +199,66 @@ fn main() {
         EXAMPLE_PORT!(),
         ")"
     );
+    let default_debounce = DEFAULT_DEBOUNCE.as_millis().to_string();
+
     let matches = clap_app!(footswitch =>
         (version: "0.1")
         (author: "Michael Farrell <https://github.com/micolous/footswitch>")
         (about: "Serial control client for a USB footswitch")
         (@arg DEVICE: port_help)
-        (@arg keyboard_emulation: -k --keyboard "Enables keyboard input emulation; only needed for serial.ino")
-        (@arg debounce_duration: -d --debounce default_value("100") value_name("MSEC") "Debounce duration, in milliseconds")
-        (@arg no_mute: -M --no_mute "Disables automatic microphone mute control")
-    ).get_matches();
+        (@arg keyboard_emulation: -k --keyboard
+            "Enables keyboard input emulation; only needed for serial.ino")
+        (@arg debounce_duration: -d --debounce
+            default_value(&default_debounce)
+            value_name("MSEC")
+            "Debounce duration, in milliseconds")
+        (@arg no_mute: -M --no_mute
+            "Disables automatic microphone mute control")
+    )
+    .get_matches();
 
     let keyboard_emulation = matches.is_present("keyboard_emulation");
     let microphone_control = !matches.is_present("no_mute");
-    if !matches.is_present("DEVICE") {
-        println!("No device specified. Available serial ports:");
-        let ports = serialport::available_ports().expect("Cannot enumerate serial ports!");
-        if ports.len() == 0 {
-            println!("No serial ports found!");
-        } else {
-            for p in ports {
-                println!("* {}", p.port_name);
-            }
-        }
-        return;
-    }
 
-    let serial_device = matches.value_of("DEVICE").unwrap();
-    let debounce_duration = u64::from_str(matches.value_of("debounce_duration").unwrap())
-        .map(|d| Duration::from_millis(d))
-        .unwrap();
-    if debounce_duration > MAX_DEBOUNCE {
-        panic!(
-            "--debounce must be less than or equal to {} milliseconds",
-            MAX_DEBOUNCE.as_millis()
-        );
-    }
+    let serial_device = match matches.value_of("DEVICE") {
+        Some(v) => v,
+        None => {
+            println!("No device specified. Available serial ports:");
+            let ports = serialport::available_ports().unwrap_or_else(|_| {
+                println!("Unable to probe for available serial ports!");
+                Vec::with_capacity(0)
+            });
+            if ports.len() == 0 {
+                println!("No serial ports found!");
+            } else {
+                for p in ports {
+                    println!("* {}", p.port_name);
+                }
+            }
+            return;
+        }
+    };
+
+    let debounce_duration = match u64::from_str(
+        matches.value_of("debounce_duration").unwrap(), // Default set in clap_app! macro
+    )
+    .map(|u| Duration::from_millis(u))
+    {
+        Err(e) => {
+            println!("Error parsing debounce duration: {}", e);
+            return;
+        }
+        Ok(d) => {
+            if d > MAX_DEBOUNCE {
+                println!(
+                    "--debounce must be less than or equal to {} milliseconds",
+                    MAX_DEBOUNCE.as_millis()
+                );
+                return;
+            }
+            d
+        }
+    };
 
     let (tx, rx) = mpsc::channel();
 
@@ -230,7 +275,7 @@ fn main() {
         .expect("Failed to open port");
 
     let serial_thread = thread::spawn(move || {
-        interact(port, tx).unwrap();
+        interact(port, tx);
     });
 
     let mut mc = MicController::new::<AudioController>(
@@ -240,12 +285,20 @@ fn main() {
         debounce_duration,
     );
     if microphone_control {
-        println!("Microphone device: {}", mc.device_name().unwrap());
+        println!(
+            "Microphone device: {}",
+            mc.device_name().unwrap_or_else(|_| "unknown".to_string())
+        );
     } else {
         println!("Microphone control disabled.");
     }
     println!("Ready, waiting for footswitch press...");
-    mc.pumpit();
+
+    match mc.pumpit() {
+        Ok(()) => {}
+        Err(e) => println!("Error in MicController: {:?}", e),
+    }
+    drop(mc);
 
     serial_thread.join().unwrap();
 }
