@@ -11,7 +11,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use enigo::{Enigo, Key, KeyboardControllable};
-use serialport::SerialPort;
+use serialport::{FlowControl, SerialPort};
 
 mod audio_controller;
 use audio_controller::{AudioControllerTrait, AudioError, AudioInputDeviceTrait};
@@ -212,6 +212,7 @@ fn main() {
     );
     println!("Debounce: {} ms", debounce_duration.as_millis());
     let port = serialport::new(serial_device, 9600)
+        .flow_control(FlowControl::Hardware)
         .timeout(CHANNEL_TIMEOUT)
         .open()
         .expect("Failed to open port");
