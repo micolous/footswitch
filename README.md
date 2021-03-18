@@ -6,13 +6,15 @@
 
 ![Footswitch built on Pro Micro](./images/pro-micro-footswitch.jpg)
 
-## Parts list
+## How to build the footswitch
+
+### Parts list
 
 * **An Arduino (ATmega32U4 strongly recommended).**
 
   Small Arduino boards based on ATmega32U4 without headers, such as the [Arduino Micro][] are best, because this gives you the most options. Similar third-party boards based on the ATmega32U4 like [Adafruit's ItsyBitsy 32U4][adafruit] and [SparkFun Pro Micro][] should also work.
 
-  _Avoid_ the serial-only boards that have a USB-TTL chip (eg: CH341, FT232R, PL2303) because they only work as a USB serial device, require drivers and a client to simulate keypresses (which [doesn't work reliably on macOS](#macos-notes)).
+  _Avoid_ the serial-only boards that have a USB-TTL chip (eg: CH341, FT232R, PL2303) because they only work as a USB serial device, require drivers and [a client to simulate keypresses](./client/README.md).
 
   Arduino boards that _only_ support "USB programming" _won't work at all_. This only affects some old, third-party boards.
 
@@ -34,7 +36,7 @@
 
 If you _don't_ have a **soldering iron**, you'll need to get a board with headers, and a switch with appropriate connectors.
 
-## Wiring the board
+### Wiring the board
 
 Wiring is identical for both versions of the code, a normally-open foot switch between `D2` and `GND`:
 
@@ -57,14 +59,14 @@ For smaller boards, once soldered up, you can wrap the board in clear heat-shrin
 
 ## Arduino code
 
-Building and uploading the Arduino code requires the [Arduino IDE][Arduino].
+There is a `keyboard` and `serial` version of the code in this repository:
 
-There are two versions of the code, which are in subdirectories of this repository:
-
-Version    | Arduino support                      | USB device class      | Serial client
+Version    | Arduino support                      | USB device class      | [Footswitch client](#client)
 ---------- | ------------------------------------ | --------------------- | ----------------
 `keyboard` | [ATmega32U4 and SAMD only][keyboard] | HID keyboard + serial | optional
 `serial`   | Any Arduino with serial              | USB serial            | required
+
+Building and uploading the Arduino code requires the [Arduino IDE][Arduino].
 
 1. Connect your Arduino board for the footswitch to your computer via USB.
 
@@ -83,7 +85,7 @@ Version    | Arduino support                      | USB device class      | Seri
 ### keyboard version
 
 * **Arduino support**: ATmega32U4 and SAMD-based boards which support the [USB Keyboard Library][keyboard].
-* **Serial client**: optional
+* [**Serial client**: optional](#client)
 * **OS support**: any that supports USB HID keyboards and USB CDC ACM.
 
 This version acts as a real USB HID keyboard device, so doesn't require any "client" running on your computer to work.
@@ -95,22 +97,24 @@ The first time you use the device on macOS, [Keyboard Set-up Assistant][] will p
 ### serial version
 
 * **Ardiuno support**: Any that provide a serial connection.
-* **Serial client**: required
-* **OS support**: macOS ([see notes](#macos-notes)), Windows
+* [**Serial client**: required](#client)
+* **OS support**: macOS (limited), Windows
 
-**This requires a "client" to work** -- this is a Python script that runs on your computer, and listens to the Arduino's serial port for button press and release events. Whenever it gets one, it simulates a keypress event, as if you pressed a key on a real keyboard.
+## Client
 
-#### macOS notes
+For the `serial` version to work, you need a way to send keyboard events to applications. This is done by [the footswitch client](./client/).
 
-Using simulated keypresses (for the serial version) requires access to `Accessibility` APIs (`System Preferences` -> `Privacy` -> `Accessibility`).
+The `keyboard` version also acts as a serial device, which is useful for microphone control.
 
-Discord for macOS **does not** support using simulated keypresses to trigger hotkeys. This is because Discord captures global hotkeys in a way that _doesn't_ support accessibility APIs. :(
-
-Most other applications support simulated keypresses, so will work fine.
+More information is available [in the client's README](./client/README.md).
 
 ## Setting up Discord
 
-Both versions use <kbd>F13</kbd> as its default key bind.
+**Note:** If you are using the `serial` version, [you need to run the client for this to work](./client/README.md)!
+
+**Warning:** Due to a bug in Discord for macOS, you cannot use the `serial` version with keyboard emulation to control Discord PTT.
+
+Both the [keyboard version](#keyboard-version) of the Arduino code, and [the client](#client) use <kbd>F13</kbd> as its default key bind.
 
 In Discord:
 
@@ -120,13 +124,13 @@ In Discord:
 4. Click `Edit keybind`
 5. Press the footswitch
 
-At this point, the shortcut should show up as `F13`.
+At this point, the shortcut should show up as <kbd>F13</kbd>.
 
 ## License and acknowledgements
 
 Code for the Arduino (`.ino` files) is based example code from the Arduino open source project, released into the public domain. The modified Arduino code used in this project may be used under the same terms, [Creative Commons Zero 1.0][CC0], or the Apache 2.0 license (at your choice).
 
-All other files, including the "clients", are released under the Apache 2.0 license.
+All other files, including the client, are released under the Apache 2.0 license.
 
 [adafruit]: https://www.adafruit.com/product/3677
 [Arduino]: https://www.arduino.cc/

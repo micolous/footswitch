@@ -1,5 +1,5 @@
 [package]
-name = "footswitch_serial"
+name = "footswitch"
 version = "0.1.0"
 authors = ["micolous"]
 edition = "2018"
@@ -12,7 +12,7 @@ license = "Apache-2.0"
 clap = "~2.33.3"
 serialport = "4.0.0"
 # TODO: https://github.com/enigo-rs/enigo/pull/109
-enigo = { path = "../../enigo" }
+enigo = { git = "https://github.com/micolous/enigo", branch = "f13" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 coreaudio-rs = "0.10.0"

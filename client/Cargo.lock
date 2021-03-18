@@ -178,6 +178,7 @@ dependencies = [
 [[package]]
 name = "enigo"
 version = "0.0.14"
+source = "git+https://github.com/micolous/enigo?branch=f13#1821013d843afc60d00e8b07215d35311c56afb3"
 dependencies = [
  "core-graphics",
  "libc",
@@ -188,7 +189,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "footswitch_serial"
+name = "footswitch"
 version = "0.1.0"
 dependencies = [
  "clap",
