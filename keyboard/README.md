@@ -25,6 +25,6 @@ This code uses the <kbd>F13</kbd> key. We use this key because:
 * it's still supported on Linux, macOS and Windows
 * it _isn't_ a modifier key (like `Shift`), so it won't mess up your keybindings (particularly an issue for RPGs)
 
-You could set this to other keys by modifying the 
+You could set this to other keys by modifying the `keyCode` constant in [keyboard.ino](./keyboard.ino).
 
 [keyboard]: https://www.arduino.cc/reference/en/language/functions/usb/keyboard/
