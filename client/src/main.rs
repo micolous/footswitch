@@ -78,7 +78,7 @@ impl MicController<'_> {
     pub fn device_name(&self) -> Result<String, AudioError> {
         match self.comms_device {
             Some(c) => c.name(),
-            None => Ok("None".to_string())
+            None => Ok("None".to_string()),
         }
     }
 
@@ -87,7 +87,9 @@ impl MicController<'_> {
             ControllerState::Pressed => {
                 println!("Button pressing");
                 self.enigo.as_mut().map(|e| e.key_up(KEYCODE));
-                self.comms_device.as_mut().map(|c| c.set_mute(false).unwrap());
+                self.comms_device
+                    .as_mut()
+                    .map(|c| c.set_mute(false).unwrap());
                 self.controller_state = ControllerState::Held;
             }
             ControllerState::ReleaseWait(released_at) => {
@@ -95,7 +97,9 @@ impl MicController<'_> {
                     println!("Button releasing");
                     self.controller_state = ControllerState::Released;
                     self.enigo.as_mut().map(|e| e.key_down(KEYCODE));
-                    self.comms_device.as_mut().map(|c| c.set_mute(true).unwrap());
+                    self.comms_device
+                        .as_mut()
+                        .map(|c| c.set_mute(true).unwrap());
                 }
             }
             _ => {}
@@ -229,7 +233,12 @@ fn main() {
         interact(port, tx).unwrap();
     });
 
-    let mut mc = MicController::new::<AudioController>(rx, keyboard_emulation, microphone_control, debounce_duration);
+    let mut mc = MicController::new::<AudioController>(
+        rx,
+        keyboard_emulation,
+        microphone_control,
+        debounce_duration,
+    );
     if microphone_control {
         println!("Microphone device: {}", mc.device_name().unwrap());
     } else {
