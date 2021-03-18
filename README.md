@@ -6,6 +6,8 @@
 
 ![Footswitch built on Pro Micro](./images/pro-micro-footswitch.jpg)
 
+The parts needed to build the unit shown above cost about 10 USD, plus about 5 USD in shipping costs. If you build more than one, it's easy to amortise the shipping costs.
+
 ## How to build the footswitch
 
 ### Parts list
@@ -33,6 +35,12 @@
   You'll also need a **heat gun**, **butane torch** or **lighter** to melt the heatshrink.
 
   Tip: heatshrink sizes are the circular diameter of the heatshrink. When laid flat (to go over a board), this is about half the circumference (ie: `W = D * π / 2`) – so 16mm heatshrink is about 25mm wide!
+
+* **Anti-slip mat (optional).**
+
+  Many foot switches have rubber feet on them to stop them slipping, but these can come out easily (depending on build quality).
+
+  Sticking some anti-slip mat to the foot switch is more reliable.
 
 If you _don't_ have a **soldering iron**, you'll need to get a board with headers, and a switch with appropriate connectors.
 
