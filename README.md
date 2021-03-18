@@ -126,7 +126,7 @@ More information is available [in the client's README](./client/README.md).
 
 **Warning:** Due to a bug in Discord for macOS, you cannot use the `serial` version with keyboard emulation to control Discord PTT.
 
-Both the [keyboard version](#keyboard-version) of the Arduino code, and [the client](#client) use <kbd>F13</kbd> as its default key bind.
+Both the [keyboard version](#keyboard-version-recommended) of the Arduino code, and [the client](#client) use <kbd>F13</kbd> as its default key bind.
 
 In Discord:
 
