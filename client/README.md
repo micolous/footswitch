@@ -26,10 +26,55 @@ You'll need to [install a Rust toolchain](https://www.rust-lang.org/tools/instal
 
 ```sh
 cd client
-cargo build --release
+cargo build
 ```
 
-This will give you an executable in `./target/release/footswitch_serial` (or `footswitch_serial.exe`).
+This will give you an executable in `./target/debug/footswitch` (or `footswitch.exe`).
+
+## Running the client
+
+Run the `footswitch_serial` executable at the command-line with the device's serial port name/path:
+
+* **macOS:**
+
+  ```
+  user@host client % cargo run -- /dev/tty.usbmodemHIDPC1
+  Serial port: /dev/tty.usbmodemHIDPC1
+  Keyboard emulation: off
+  Debounce: 100 ms
+  Microphone device: MacBook Pro Microphone
+  Ready, waiting for footswitch press...
+  ```
+
+* **Windows:**
+
+  ```
+  D:\footswitch\client> cargo run -- COM3
+  Serial port: COM3
+  Keyboard emulation: off
+  Debounce: 100 ms
+  Microphone device: Microphone (High Definition Audio Device)
+  Ready, waiting for footswitch press...
+  ```
+
+You can stop the client by pressing <kbd>Control</kbd> + <kbd>C</kbd>.
+
+By default, this will automatically mute your default microphone device, and only unmute it when the button is not pressed.
+
+The client takes the following command-line flags (which also can be seen by running `cargo run -- --help`):
+
+* `--keyboard`: Enables keyboard input emulation. Only needed if you're running [serial.ino](../serial/serial.ino).
+* `--no_mute`: Disables automatic microphone mute control.
+* `--debounce <MSEC>`: Number of milliseconds to wait after the footswitch is released before releasing the PTT key and muting the microphone again.
+
+You can also run the client without any command-line arguments to get a list of serial ports on your system:
+
+```
+% cargo run --
+No device specified. Available serial ports:
+* /dev/tty.Bluetooth-Incoming-Port
+* /dev/tty.usbmodemHIDPC1
+```
 
 ## Known issues
 
@@ -40,3 +85,25 @@ Using simulated keypresses (for the serial version) requires access to `Accessib
 Discord for macOS **does not** support using simulated keypresses to trigger hotkeys. This is because Discord captures global hotkeys in a way that _doesn't_ support accessibility APIs (`IOHIDManager` taps). This is a bug in Discord, and has been reported to them.
 
 Most other applications support simulated keypresses, so will work fine.
+
+## Client design
+
+The client runs with two threads:
+
+* The `serial` thread listens to events from the footswitch's serial port, and broadcasts them over [a channel][mpsc] to the `main` thread.
+
+* The `main` thread listens to to events from the `serial` thread, and runs the `MicController` state machine.
+
+The `MicController` state machine is responsible for debouncing incoming events, muting and unmuting the microphone device, and pressing and releasing synthetic key events.
+
+OS-specific audio mixer code implements the `AudioControllerTrait` (`audio_controller.rs`), which has a minimal set of controls each platform needs to expose:
+
+* `macos.rs`: macOS CoreAudio mixer implementation
+* `windows.rs`: Windows MMDevice mixer implementation
+* `os.rs`: a stub (fake) mixer implementation
+
+In future, the plan is to find a cross-platform audio library that will allow this to stop shipping as much OS-specific code. :)
+
+Synthetic keypress events are handled by `enigo`, including all platform-specific code.
+
+[mpsc]: https://doc.rust-lang.org/std/sync/mpsc/
