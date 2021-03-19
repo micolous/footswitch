@@ -1,0 +1,10 @@
+[package]
+name = "footswitch"
+version = "0.0.0"
+authors = ["micolous"]
+edition = "2018"
+homepage = "https://github.com/micolous/footswitch"
+repository = "https://github.com/micolous/footswitch"
+license = "Apache-2.0"
+readme = "../README-cargo.md"
+description = "Placeholder for Rust client for USB-serial PTT footswitch"

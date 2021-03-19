@@ -1,5 +1,7 @@
 # footswitch client
 
+**Note:** the version published on crates.io is a placeholder.
+
 This is a Rust client for [a USB footswitch][footswitch] for push-to-talk in voice chat apps.
 
 ![Footswitch built on the Pro Micro](https://github.com/micolous/footswitch/raw/main/images/pro-micro-footswitch.jpg)
