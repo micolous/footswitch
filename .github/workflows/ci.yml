@@ -1,0 +1,99 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  rustfmt-check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install stable
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+        components: rustfmt
+    - name: Run rustfmt
+      run: cd client && cargo fmt -- --check
+
+  macos-test:
+    runs-on: macOS-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install llvm and clang
+      run: brew install llvm
+    - name: Install stable
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+    - name: Build client
+      run: cd client && cargo b --release
+    - name: Run self-tests
+      run: cd client && cargo t --release
+
+  windows-test:
+    strategy:
+      matrix:
+        toolchain: [gnu, msvc]
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install llvm and clang
+      run: choco install llvm
+    - name: Install stable
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        target: x86_64-pc-windows-${{ matrix.toolchain }}
+        override: true
+    - name: Build client
+      run: cd client && cargo b --release
+    - name: Run self-tests
+      run: cd client && cargo t --release
+
+  # Tests building both the keyboard and serial targets, for devices that have
+  # USB host support.
+  arduino-usb-test:
+    strategy:
+      matrix:
+        board:
+        - arduino:avr:micro
+        - arduino:avr:leonardo
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install Arduino CLI
+      uses: arduino/setup-arduino-cli@v1.1.1
+    - name: Install platform
+      run: |
+        arduino-cli core update-index
+        arduino-cli core install arduino:avr
+        arduino-cli lib install Keyboard
+    - name: Build keyboard sketch
+      run: arduino-cli compile --fqbn ${{ matrix.board }} --libraries Keyboard ./keyboard
+    - name: Build serial sketch
+      run: arduino-cli compile --fqbn ${{ matrix.board }} ./serial
+
+  # Tests building only the serial target, for devices that don't support USB
+  # host.
+  ardiuno-serial-test:
+    strategy:
+      matrix:
+        board:
+        - arduino:avr:uno
+        - arduino:avr:nano
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install Arduino CLI
+      uses: arduino/setup-arduino-cli@v1.1.1
+    - name: Install platform
+      run: |
+        arduino-cli core update-index
+        arduino-cli core install arduino:avr
+    - name: Build serial sketch
+      run: arduino-cli compile --fqbn ${{ matrix.board }} ./serial
