@@ -14,7 +14,10 @@ readme = "README-cargo.md"
 clap = "~2.33.3"
 serialport = "4.0.0"
 # TODO: https://github.com/enigo-rs/enigo/pull/109
-enigo = { git = "https://github.com/micolous/enigo", branch = "f13" }
+enigo = { git = "https://github.com/micolous/enigo", branch = "f13", optional = true }
+
+[features]
+default = ["enigo"]
 
 [target.'cfg(target_os = "macos")'.dependencies]
 coreaudio-rs = "0.10.0"

@@ -1,5 +1,6 @@
 #[macro_use]
 extern crate clap;
+#[cfg(feature = "enigo")]
 extern crate enigo;
 extern crate serialport;
 
@@ -10,6 +11,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
 
+#[cfg(feature = "enigo")]
 use enigo::{Enigo, Key, KeyboardControllable};
 use serialport::{FlowControl, SerialPort};
 
@@ -22,6 +24,7 @@ use audio_controller::{AudioControllerTrait, AudioError, AudioInputDeviceTrait};
 mod os;
 use os::AudioController;
 
+#[cfg(feature = "enigo")]
 const KEYCODE: Key = Key::F13;
 const CHANNEL_TIMEOUT: Duration = Duration::from_secs(1);
 const MAX_DEBOUNCE: Duration = Duration::from_secs(10);
@@ -46,6 +49,7 @@ pub enum ControllerState {
 pub struct MicController<'a> {
     chan: mpsc::Receiver<bool>,
     comms_device: Option<&'a dyn AudioInputDeviceTrait>,
+    #[cfg(feature = "enigo")]
     enigo: Option<Enigo>,
     debounce: Duration,
     controller_state: ControllerState,
@@ -54,7 +58,7 @@ pub struct MicController<'a> {
 impl MicController<'_> {
     pub fn new<T: AudioControllerTrait>(
         chan: mpsc::Receiver<bool>,
-        keyboard_emulation: bool,
+        #[cfg(feature = "enigo")] keyboard_emulation: bool,
         microphone_control: bool,
         debounce: Duration,
     ) -> Self {
@@ -66,6 +70,7 @@ impl MicController<'_> {
             } else {
                 None
             },
+            #[cfg(feature = "enigo")]
             enigo: if keyboard_emulation {
                 Some(Enigo::new())
             } else {
@@ -88,6 +93,7 @@ impl MicController<'_> {
             ControllerState::Pressed => {
                 println!("Button pressing");
                 self.controller_state = ControllerState::Held;
+                #[cfg(feature = "enigo")]
                 self.enigo.as_mut().map(|e| e.key_up(KEYCODE));
                 return match self.comms_device {
                     Some(c) => c.set_mute(false).map(|_| ()),
@@ -98,6 +104,7 @@ impl MicController<'_> {
                 if released_at.elapsed() >= self.debounce {
                     println!("Button releasing");
                     self.controller_state = ControllerState::Released;
+                    #[cfg(feature = "enigo")]
                     self.enigo.as_mut().map(|e| e.key_down(KEYCODE));
                     return match self.comms_device {
                         Some(c) => c.set_mute(true).map(|_| ()),
@@ -218,6 +225,11 @@ fn main() {
     .get_matches();
 
     let keyboard_emulation = matches.is_present("keyboard_emulation");
+    #[cfg(not(feature = "enigo"))]
+    if keyboard_emulation {
+        println!("Keyboard input emulation support is not available in this build.");
+        return;
+    }
     let microphone_control = !matches.is_present("no_mute");
 
     let serial_device = match matches.value_of("DEVICE") {
@@ -263,6 +275,7 @@ fn main() {
     let (tx, rx) = mpsc::channel();
 
     println!("Serial port: {}", serial_device);
+    #[cfg(feature = "enigo")]
     println!(
         "Keyboard emulation: {}",
         if keyboard_emulation { "on" } else { "off" }
@@ -280,6 +293,7 @@ fn main() {
 
     let mut mc = MicController::new::<AudioController>(
         rx,
+        #[cfg(feature = "enigo")]
         keyboard_emulation,
         microphone_control,
         debounce_duration,
