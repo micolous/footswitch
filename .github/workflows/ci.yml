@@ -58,10 +58,14 @@ jobs:
       run: cd client && cargo b --release --no-default-features
     - name: Run self-tests without default features
       run: cd client && cargo t --release --no-default-features
+    - name: Check footswitch DLL refs (without default features)
+      run: llvm-strings client/target/release/footswitch.exe | select-string -pattern dll
     - name: Build client
       run: cd client && cargo b --release
     - name: Run self-tests
       run: cd client && cargo t --release
+    - name: Check footswitch DLL refs
+      run: llvm-strings client/target/release/footswitch.exe | select-string -pattern dll
 
   # Tests building both the keyboard and serial targets, for devices that have
   # USB host support.
