@@ -1,4 +1,6 @@
 #[macro_use]
+extern crate log;
+#[macro_use]
 extern crate clap;
 #[cfg(feature = "enigo")]
 extern crate enigo;
@@ -29,6 +31,7 @@ const KEYCODE: Key = Key::F13;
 const CHANNEL_TIMEOUT: Duration = Duration::from_secs(1);
 const MAX_DEBOUNCE: Duration = Duration::from_secs(10);
 const DEFAULT_DEBOUNCE: Duration = Duration::from_millis(100);
+const MISSING_SERIAL_WAIT_TIME: Duration = Duration::from_secs(10);
 
 #[derive(Debug, PartialEq)]
 pub enum ControllerState {
@@ -63,7 +66,7 @@ impl MicController<'_> {
         debounce: Duration,
     ) -> Self {
         MicController {
-            chan: chan,
+            chan,
             comms_device: if microphone_control {
                 let audio = Box::leak(T::new());
                 Some(Box::leak(audio.get_comms_device().unwrap()))
@@ -76,7 +79,7 @@ impl MicController<'_> {
             } else {
                 None
             },
-            debounce: debounce,
+            debounce,
             controller_state: ControllerState::Released,
         }
     }
@@ -91,10 +94,12 @@ impl MicController<'_> {
     fn dispatch(&mut self) -> Result<(), AudioError> {
         match self.controller_state {
             ControllerState::Pressed => {
-                println!("Button pressing");
+                debug!("Button pressing");
                 self.controller_state = ControllerState::Held;
                 #[cfg(feature = "enigo")]
-                self.enigo.as_mut().map(|e| e.key_up(KEYCODE));
+                if let Some(e) = self.enigo.as_mut() {
+                    e.key_up(KEYCODE)
+                };
                 return match self.comms_device {
                     Some(c) => c.set_mute(false).map(|_| ()),
                     None => Ok(()),
@@ -102,10 +107,12 @@ impl MicController<'_> {
             }
             ControllerState::ReleaseWait(released_at) => {
                 if released_at.elapsed() >= self.debounce {
-                    println!("Button releasing");
+                    debug!("Button releasing");
                     self.controller_state = ControllerState::Released;
                     #[cfg(feature = "enigo")]
-                    self.enigo.as_mut().map(|e| e.key_down(KEYCODE));
+                    if let Some(e) = self.enigo.as_mut() {
+                        e.key_down(KEYCODE)
+                    };
                     return match self.comms_device {
                         Some(c) => c.set_mute(true).map(|_| ()),
                         None => Ok(()),
@@ -152,6 +159,7 @@ impl MicController<'_> {
                     }
                     _ => {
                         // The other side has probably gone away!
+                        info!("Closing pumpit thread");
                         return Ok(());
                     }
                 },
@@ -160,47 +168,72 @@ impl MicController<'_> {
     }
 }
 
+fn create_serial_port(serial_device: &str) -> Result<Box<dyn SerialPort>, ()> {
+    serialport::new(serial_device, 9600)
+        .flow_control(FlowControl::Hardware)
+        .timeout(CHANNEL_TIMEOUT)
+        .open()
+        .map_err(|e| {
+            debug!("Failed to open serial device -> {:?}", e);
+        })
+}
+
 /// Sends events from the serial port to the channel.
-fn interact(mut port: Box<dyn SerialPort>, chan: mpsc::Sender<bool>) {
+fn interact(mut port: Box<dyn SerialPort>, serial_device: String, chan: mpsc::Sender<bool>) {
     let mut buf = [0; 1];
 
-    loop {
-        let res = port.read(&mut buf[..]);
-        match res {
-            Ok(len) => {
-                if len == 1 {
-                    match chan.send(match buf[0] {
-                        b'0' => false,
-                        b'1' => true,
-                        _ => {
-                            println!("Unhandled serial input: {}", buf[0]);
-                            return;
+    'outer: loop {
+        'inner: loop {
+            let res = port.read(&mut buf[..]);
+            match res {
+                Ok(len) => {
+                    if len == 1 {
+                        match chan.send(match buf[0] {
+                            b'0' => false,
+                            b'1' => true,
+                            _ => {
+                                warn!("Unhandled serial input: {}", buf[0]);
+                                break 'inner;
+                            }
+                        }) {
+                            Ok(()) => {}
+                            Err(_) => {
+                                // Other end of the channel has probably gone away.
+                                // Shut down the thread.
+                                break 'outer;
+                            }
                         }
-                    }) {
-                        Ok(()) => {}
-                        Err(_) => {
-                            // Other end of the channel has probably gone away.
-                            // Shut down the thread.
-                            return;
-                        }
+                    } else {
+                        warn!("Unhandled serial input length ({}): {:?}", len, &buf[..len]);
+                        break 'inner;
                     }
-                } else {
-                    println!("Unhandled serial input length ({}): {:?}", len, &buf[..len]);
-                    return;
                 }
+                Err(error) => match error.kind() {
+                    io::ErrorKind::TimedOut => continue,
+                    _ => {
+                        warn!("Error reading serial device: {:?}", error);
+                        break 'inner;
+                    }
+                },
             }
-            Err(error) => match error.kind() {
-                io::ErrorKind::TimedOut => continue,
-                _ => {
-                    println!("Error reading serial device: {:?}", error);
-                    return;
-                }
-            },
         }
+
+        // Something went wrong - reset the serial port if possible.
+        port = 'reset: loop {
+            match create_serial_port(&serial_device) {
+                Ok(p) => {
+                    warn!("Reconnecting device {}", &serial_device);
+                    break 'reset p;
+                }
+                Err(_) => thread::sleep(MISSING_SERIAL_WAIT_TIME),
+            }
+        };
     }
 }
 
 fn main() {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+
     let port_help = concat!(
         "Port/path of the footswitch's serial device (eg: ",
         EXAMPLE_PORT!(),
@@ -227,24 +260,24 @@ fn main() {
     let keyboard_emulation = matches.is_present("keyboard_emulation");
     #[cfg(not(feature = "enigo"))]
     if keyboard_emulation {
-        println!("Keyboard input emulation support is not available in this build.");
+        error!("Keyboard input emulation support is not available in this build.");
         return;
     }
     let microphone_control = !matches.is_present("no_mute");
 
     let serial_device = match matches.value_of("DEVICE") {
-        Some(v) => v,
+        Some(v) => v.to_string(),
         None => {
-            println!("No device specified. Available serial ports:");
+            error!("No device specified. Available serial ports:");
             let ports = serialport::available_ports().unwrap_or_else(|_| {
-                println!("Unable to probe for available serial ports!");
+                error!("Unable to probe for available serial ports!");
                 Vec::with_capacity(0)
             });
-            if ports.len() == 0 {
-                println!("No serial ports found!");
+            if ports.is_empty() {
+                error!("No serial ports found!");
             } else {
                 for p in ports {
-                    println!("* {}", p.port_name);
+                    error!("* {}", p.port_name);
                 }
             }
             return;
@@ -254,15 +287,15 @@ fn main() {
     let debounce_duration = match u64::from_str(
         matches.value_of("debounce_duration").unwrap(), // Default set in clap_app! macro
     )
-    .map(|u| Duration::from_millis(u))
+    .map(Duration::from_millis)
     {
         Err(e) => {
-            println!("Error parsing debounce duration: {}", e);
+            error!("Error parsing debounce duration: {}", e);
             return;
         }
         Ok(d) => {
             if d > MAX_DEBOUNCE {
-                println!(
+                error!(
                     "--debounce must be less than or equal to {} milliseconds",
                     MAX_DEBOUNCE.as_millis()
                 );
@@ -274,21 +307,17 @@ fn main() {
 
     let (tx, rx) = mpsc::channel();
 
-    println!("Serial port: {}", serial_device);
+    info!("Serial port: {}", &serial_device);
     #[cfg(feature = "enigo")]
-    println!(
+    info!(
         "Keyboard emulation: {}",
         if keyboard_emulation { "on" } else { "off" }
     );
-    println!("Debounce: {} ms", debounce_duration.as_millis());
-    let port = serialport::new(serial_device, 9600)
-        .flow_control(FlowControl::Hardware)
-        .timeout(CHANNEL_TIMEOUT)
-        .open()
-        .expect("Failed to open port");
+    info!("Debounce: {} ms", debounce_duration.as_millis());
+    let port = create_serial_port(&serial_device).expect("Failed to open port");
 
     let serial_thread = thread::spawn(move || {
-        interact(port, tx);
+        interact(port, serial_device, tx);
     });
 
     let mut mc = MicController::new::<AudioController>(
@@ -299,18 +328,18 @@ fn main() {
         debounce_duration,
     );
     if microphone_control {
-        println!(
+        info!(
             "Microphone device: {}",
             mc.device_name().unwrap_or_else(|_| "unknown".to_string())
         );
     } else {
-        println!("Microphone control disabled.");
+        info!("Microphone control disabled.");
     }
-    println!("Ready, waiting for footswitch press...");
+    info!("Ready, waiting for footswitch press...");
 
     match mc.pumpit() {
         Ok(()) => {}
-        Err(e) => println!("Error in MicController: {:?}", e),
+        Err(e) => error!("Error in MicController: {:?}", e),
     }
     drop(mc);
 
