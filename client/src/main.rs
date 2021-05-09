@@ -232,7 +232,7 @@ fn interact(mut port: Box<dyn SerialPort>, serial_device: String, chan: mpsc::Se
 }
 
 fn main() {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     let port_help = concat!(
         "Port/path of the footswitch's serial device (eg: ",
