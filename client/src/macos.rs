@@ -80,9 +80,7 @@ impl AudioControllerTrait for AudioController {
             });
         }
 
-        Ok(Box::new(AudioInputDevice {
-            audio_device_id: audio_device_id,
-        }))
+        Ok(Box::new(AudioInputDevice { audio_device_id }))
     }
 }
 

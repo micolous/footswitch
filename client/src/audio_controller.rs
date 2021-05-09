@@ -19,6 +19,7 @@ pub trait AudioInputDeviceTrait {
 /// Trait that describes the audio subsystem.
 pub trait AudioControllerTrait {
     /// Create a new connection to the audio subsystem.
+    #[allow(clippy::new_ret_no_self)]
     fn new() -> Box<dyn AudioControllerTrait>
     where
         Self: Sized;
