@@ -51,8 +51,8 @@ macro_rules! try_cf {
 // Implementation largely copied from cpal
 
 impl AudioControllerTrait for AudioController {
-    fn new() -> Box<dyn AudioControllerTrait> {
-        Box::new(AudioController {})
+    fn new() -> Self {
+        AudioController {}
     }
 
     fn get_comms_device(&self) -> Result<Box<dyn AudioInputDeviceTrait>, AudioError> {

@@ -49,30 +49,25 @@ pub enum ControllerState {
     ReleaseWait(Instant),
 }
 
-pub struct MicController<'a> {
+pub struct MicController {
     chan: mpsc::Receiver<bool>,
-    comms_device: Option<&'a dyn AudioInputDeviceTrait>,
+    comms_device: Option<Box<dyn AudioInputDeviceTrait>>,
     #[cfg(feature = "enigo")]
     enigo: Option<Enigo>,
     debounce: Duration,
     controller_state: ControllerState,
 }
 
-impl MicController<'_> {
-    pub fn new<T: AudioControllerTrait>(
+impl MicController {
+    pub fn new(
         chan: mpsc::Receiver<bool>,
         #[cfg(feature = "enigo")] keyboard_emulation: bool,
-        microphone_control: bool,
+        microphone: Option<Box<dyn AudioInputDeviceTrait>>,
         debounce: Duration,
     ) -> Self {
         MicController {
             chan,
-            comms_device: if microphone_control {
-                let audio = Box::leak(T::new());
-                Some(Box::leak(audio.get_comms_device().unwrap()))
-            } else {
-                None
-            },
+            comms_device: microphone,
             #[cfg(feature = "enigo")]
             enigo: if keyboard_emulation {
                 Some(Enigo::new())
@@ -85,7 +80,7 @@ impl MicController<'_> {
     }
 
     pub fn device_name(&self) -> Result<String, AudioError> {
-        match self.comms_device {
+        match &self.comms_device {
             Some(c) => c.name(),
             None => Ok("None".to_string()),
         }
@@ -100,7 +95,7 @@ impl MicController<'_> {
                 if let Some(e) = self.enigo.as_mut() {
                     e.key_up(KEYCODE)
                 };
-                return match self.comms_device {
+                return match &self.comms_device {
                     Some(c) => c.set_mute(false).map(|_| ()),
                     None => Ok(()),
                 };
@@ -113,7 +108,7 @@ impl MicController<'_> {
                     if let Some(e) = self.enigo.as_mut() {
                         e.key_down(KEYCODE)
                     };
-                    return match self.comms_device {
+                    return match &self.comms_device {
                         Some(c) => c.set_mute(true).map(|_| ()),
                         None => Ok(()),
                     };
@@ -254,6 +249,9 @@ fn main() {
             "Debounce duration, in milliseconds")
         (@arg no_mute: -M --no_mute
             "Disables automatic microphone mute control")
+        (@arg mic_device: -m --mic_device
+            value_name("DEVICE")
+            "Control a mic device other than the default")
     )
     .get_matches();
 
@@ -264,6 +262,29 @@ fn main() {
         return;
     }
     let microphone_control = !matches.is_present("no_mute");
+    let microphone_device_name = match matches.value_of("mic_device") {
+        Some(v) => Some(v.to_string()),
+        None => None,
+    };
+
+    let audio = AudioController::new();
+    let microphone: Option<Box<dyn AudioInputDeviceTrait>> = match (microphone_control, microphone_device_name) {
+        // Microphone control disabled.
+        (false, _) => None,
+        (true, None) => Some(audio.get_comms_device().unwrap()),
+        (true, Some(v)) => {
+            match audio.get_input_device(v) {
+                Ok(d) => Some(d),
+                Err(err) => {
+                    error!("No such audio device. Devices:");
+                    for d in audio.get_input_device_names().unwrap() {
+                        error!("* {}", d);
+                    }
+                    panic!("{:?}", err);
+                }
+            }
+        }
+    };
 
     let serial_device = match matches.value_of("DEVICE") {
         Some(v) => v.to_string(),
@@ -320,11 +341,11 @@ fn main() {
         interact(port, serial_device, tx);
     });
 
-    let mut mc = MicController::new::<AudioController>(
+    let mut mc = MicController::new(
         rx,
         #[cfg(feature = "enigo")]
         keyboard_emulation,
-        microphone_control,
+        microphone,
         debounce_duration,
     );
     if microphone_control {

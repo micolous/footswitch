@@ -20,12 +20,16 @@ pub trait AudioInputDeviceTrait {
 pub trait AudioControllerTrait {
     /// Create a new connection to the audio subsystem.
     #[allow(clippy::new_ret_no_self)]
-    fn new() -> Box<dyn AudioControllerTrait>
-    where
-        Self: Sized;
+    fn new() -> Self;
 
     /// Gets the default communications device.
     fn get_comms_device(&self) -> Result<Box<dyn AudioInputDeviceTrait>, AudioError>;
+
+    /// Get input device by name
+    fn get_input_device(&self, name: String) -> Result<Box<dyn AudioInputDeviceTrait>, AudioError>;
+
+    // Gets all input device names.
+    fn get_input_device_names(&self) -> Result<Vec<String>, AudioError>;
 }
 
 impl Debug for dyn AudioInputDeviceTrait {

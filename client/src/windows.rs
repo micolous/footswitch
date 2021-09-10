@@ -22,7 +22,13 @@ use winapi::{
         endpointvolume::IAudioEndpointVolume,
         functiondiscoverykeys_devpkey::PKEY_Device_FriendlyName,
         mmdeviceapi::{
-            eCapture, eCommunications, CLSID_MMDeviceEnumerator, IMMDevice, IMMDeviceEnumerator,
+            eCapture,
+            eCommunications,
+            CLSID_MMDeviceEnumerator,
+            IMMDevice,
+            IMMDeviceCollection,
+            IMMDeviceEnumerator,
+            DEVICE_STATE_ACTIVE,
         },
         objbase::CoInitialize,
         propkeydef::REFPROPERTYKEY,
@@ -91,22 +97,98 @@ impl AudioController {
             Ok(mm_device.assume_init())
         }
     }
+
+    fn enum_audio_endpoints(
+        &self,
+        device_enumerator: *mut IMMDeviceEnumerator,
+    ) -> Result<*mut IMMDeviceCollection, AudioError> {
+        unsafe {
+            let mut p_collection = mem::MaybeUninit::<&mut IMMDeviceCollection>::uninit();
+
+            try_com!((*device_enumerator).EnumAudioEndpoints(
+                eCapture,
+                DEVICE_STATE_ACTIVE,
+                p_collection.as_mut_ptr() as *mut *mut _
+            ));
+
+            Ok(p_collection.assume_init())
+        }
+    }
 }
 
 impl AudioControllerTrait for AudioController {
-    fn new() -> Box<dyn AudioControllerTrait> {
+    fn new() -> Self {
         unsafe {
             CoInitialize(null_mut());
         }
-        Box::new(AudioController {})
+        AudioController {}
     }
 
     fn get_comms_device(&self) -> Result<Box<dyn AudioInputDeviceTrait>, AudioError> {
         let device_enumerator = self.get_device_enumerator()?;
 
+
         Ok(Box::new(AudioInputDevice::new(
             self.get_default_communications_imm_device(device_enumerator)?,
         )?))
+    }
+
+    fn get_input_device(&self, name: String) -> Result<Box<dyn AudioInputDeviceTrait>, AudioError> {
+        let device_enumerator = self.get_device_enumerator()?;
+        let endpoints = self.enum_audio_endpoints(device_enumerator)?;
+
+        unsafe {
+            let mut pc_devices = mem::MaybeUninit::uninit();
+            try_com!((*endpoints).GetCount(pc_devices.as_mut_ptr()));
+            let device_count = pc_devices.assume_init();
+
+            let mut index = 0;
+            while index < device_count {
+                let mut pp_device = mem::MaybeUninit::uninit();
+                try_com!((*endpoints).Item(
+                    index,
+                    pp_device.as_mut_ptr()
+                ));
+
+                let device = AudioInputDevice::new(pp_device.assume_init())?;
+                let device_name = device.name()?;
+
+                if device_name == name {
+                    return Ok(Box::new(device));
+                }
+                
+                index += 1;
+            }
+            
+            return Err(AudioError { msg: "No such device".to_string() });
+        }
+    }
+
+    fn get_input_device_names(&self) -> Result<Vec<String>, AudioError> {
+        let device_enumerator = self.get_device_enumerator()?;
+        let endpoints = self.enum_audio_endpoints(device_enumerator)?;
+        let mut r = Vec::new();
+
+        unsafe {
+            let mut pc_devices = mem::MaybeUninit::uninit();
+            try_com!((*endpoints).GetCount(pc_devices.as_mut_ptr()));
+            let device_count = pc_devices.assume_init();
+
+            let mut index = 0;
+            while index < device_count {
+                let mut pp_device = mem::MaybeUninit::uninit();
+                try_com!((*endpoints).Item(
+                    index,
+                    pp_device.as_mut_ptr()
+                ));
+
+                let device = AudioInputDevice::new(pp_device.assume_init())?;
+                r.push(device.name()?);
+                
+                index += 1;
+            }
+        }
+        Ok(r)
     }
 }
 
@@ -179,5 +261,11 @@ impl AudioInputDeviceTrait for AudioInputDevice {
                 (*self.audio_endpoint_volume).SetMute(BOOL::from(state), null_mut())
             ))
         }
+    }
+}
+
+impl Clone for AudioInputDevice {
+    fn clone(&self) -> AudioInputDevice {
+        AudioInputDevice::new(self.mm_device).unwrap()
     }
 }
