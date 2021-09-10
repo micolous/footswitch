@@ -59,12 +59,13 @@ Run the `footswitch_serial` executable at the command-line with the device's ser
 
 You can stop the client by pressing <kbd>Control</kbd> + <kbd>C</kbd>.
 
-By default, this will automatically mute your default microphone device, and only unmute it when the button is not pressed.
+By default, this will automatically mute your default (communications) microphone device, and only unmute it when the button is not pressed.
 
 The client takes the following command-line flags (which also can be seen by running `cargo run -- --help`):
 
 * `--keyboard`: Enables keyboard input emulation. Only needed if you're running [serial.ino](../serial/serial.ino).
 * `--no_mute`: Disables automatic microphone mute control.
+* `--mic_device <NAME>`: Control a microphone other than the default.
 * `--debounce <MSEC>`: Number of milliseconds to wait after the footswitch is released before releasing the PTT key and muting the microphone again.
 
 You can also run the client without any command-line arguments to get a list of serial ports on your system:

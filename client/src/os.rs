@@ -13,22 +13,41 @@ macro_rules! EXAMPLE_PORT {
     };
 }
 
-pub struct AudioController {}
+pub struct AudioController {
+    fake_mic: AudioInputDevice,
+}
 
+#[derive(Clone)]
 pub struct AudioInputDevice {
     name: String,
 }
 
 impl AudioControllerTrait for AudioController {
-    fn new() -> Box<dyn AudioControllerTrait> {
+    fn new() -> Self {
         println!("Using fake audio controller device!");
-        Box::new(AudioController {})
+        AudioController {
+            fake_mic: AudioInputDevice {
+                name: "Fake Microphone".to_string(),
+            }
+        }
     }
 
     fn get_comms_device(&self) -> Result<Box<dyn AudioInputDeviceTrait>, AudioError> {
-        Ok(Box::new(AudioInputDevice {
-            name: "Fake Microphone".to_string(),
-        }))
+        Ok(Box::new(self.fake_mic.clone()))
+    }
+
+    /// Get input device by name
+    fn get_input_device(&self, name: String) -> Result<Box<dyn AudioInputDeviceTrait>, AudioError> {
+        if name == self.fake_mic.name {
+            Ok(Box::new(self.fake_mic.clone()))
+        } else {
+            Err(AudioError { msg: "device not found".to_string() })
+        }
+    }
+
+    // Gets all input device names.
+    fn get_input_device_names(&self) -> Result<Vec<String>, AudioError> {
+        Ok(vec!(self.fake_mic.name.clone()))
     }
 }
 
