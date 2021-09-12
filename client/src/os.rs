@@ -28,7 +28,7 @@ impl AudioControllerTrait for AudioController {
         AudioController {
             fake_mic: AudioInputDevice {
                 name: "Fake Microphone".to_string(),
-            }
+            },
         }
     }
 
@@ -41,13 +41,15 @@ impl AudioControllerTrait for AudioController {
         if name == self.fake_mic.name {
             Ok(Box::new(self.fake_mic.clone()))
         } else {
-            Err(AudioError { msg: "device not found".to_string() })
+            Err(AudioError {
+                msg: "device not found".to_string(),
+            })
         }
     }
 
     // Gets all input device names.
     fn get_input_device_names(&self) -> Result<Vec<String>, AudioError> {
-        Ok(vec!(self.fake_mic.name.clone()))
+        Ok(vec![self.fake_mic.name.clone()])
     }
 }
 

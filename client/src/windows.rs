@@ -22,13 +22,8 @@ use winapi::{
         endpointvolume::IAudioEndpointVolume,
         functiondiscoverykeys_devpkey::PKEY_Device_FriendlyName,
         mmdeviceapi::{
-            eCapture,
-            eCommunications,
-            CLSID_MMDeviceEnumerator,
-            IMMDevice,
-            IMMDeviceCollection,
-            IMMDeviceEnumerator,
-            DEVICE_STATE_ACTIVE,
+            eCapture, eCommunications, CLSID_MMDeviceEnumerator, IMMDevice, IMMDeviceCollection,
+            IMMDeviceEnumerator, DEVICE_STATE_ACTIVE,
         },
         objbase::CoInitialize,
         propkeydef::REFPROPERTYKEY,
@@ -127,7 +122,6 @@ impl AudioControllerTrait for AudioController {
     fn get_comms_device(&self) -> Result<Box<dyn AudioInputDeviceTrait>, AudioError> {
         let device_enumerator = self.get_device_enumerator()?;
 
-
         Ok(Box::new(AudioInputDevice::new(
             self.get_default_communications_imm_device(device_enumerator)?,
         )?))
@@ -145,10 +139,7 @@ impl AudioControllerTrait for AudioController {
             let mut index = 0;
             while index < device_count {
                 let mut pp_device = mem::MaybeUninit::uninit();
-                try_com!((*endpoints).Item(
-                    index,
-                    pp_device.as_mut_ptr()
-                ));
+                try_com!((*endpoints).Item(index, pp_device.as_mut_ptr()));
 
                 let device = AudioInputDevice::new(pp_device.assume_init())?;
                 let device_name = device.name()?;
@@ -156,11 +147,13 @@ impl AudioControllerTrait for AudioController {
                 if device_name == name {
                     return Ok(Box::new(device));
                 }
-                
+
                 index += 1;
             }
-            
-            return Err(AudioError { msg: "No such device".to_string() });
+
+            return Err(AudioError {
+                msg: "No such device".to_string(),
+            });
         }
     }
 
@@ -177,14 +170,11 @@ impl AudioControllerTrait for AudioController {
             let mut index = 0;
             while index < device_count {
                 let mut pp_device = mem::MaybeUninit::uninit();
-                try_com!((*endpoints).Item(
-                    index,
-                    pp_device.as_mut_ptr()
-                ));
+                try_com!((*endpoints).Item(index, pp_device.as_mut_ptr()));
 
                 let device = AudioInputDevice::new(pp_device.assume_init())?;
                 r.push(device.name()?);
-                
+
                 index += 1;
             }
         }

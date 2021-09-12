@@ -203,12 +203,12 @@ fn main() {
     };
 
     let audio = AudioController::new();
-    let microphone: Option<Box<dyn AudioInputDeviceTrait>> = match (microphone_control, microphone_device_name) {
-        // Microphone control disabled.
-        (false, _) => None,
-        (true, None) => Some(audio.get_comms_device().unwrap()),
-        (true, Some(v)) => {
-            match audio.get_input_device(v) {
+    let microphone: Option<Box<dyn AudioInputDeviceTrait>> =
+        match (microphone_control, microphone_device_name) {
+            // Microphone control disabled.
+            (false, _) => None,
+            (true, None) => Some(audio.get_comms_device().unwrap()),
+            (true, Some(v)) => match audio.get_input_device(v) {
                 Ok(d) => Some(d),
                 Err(err) => {
                     error!("No such audio device. Devices:");
@@ -217,9 +217,8 @@ fn main() {
                     }
                     panic!("{:?}", err);
                 }
-            }
-        }
-    };
+            },
+        };
 
     let serial_device = match matches.value_of("DEVICE") {
         Some(v) => v.to_string(),
