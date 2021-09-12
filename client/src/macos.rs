@@ -7,9 +7,11 @@ use core_foundation_sys::string::{
 use coreaudio::sys::{
     kAudioDevicePropertyDeviceNameCFString, kAudioDevicePropertyMute,
     kAudioDevicePropertyScopeOutput, kAudioHardwareNoError,
-    kAudioHardwarePropertyDefaultInputDevice, kAudioObjectPropertyElementMaster,
-    kAudioObjectPropertyScopeGlobal, kAudioObjectSystemObject, AudioDeviceID,
-    AudioDeviceSetProperty, AudioObjectGetPropertyData, AudioObjectPropertyAddress,
+    kAudioHardwarePropertyDefaultInputDevice, kAudioHardwarePropertyDevices,
+    kAudioObjectPropertyElementMaster, kAudioObjectPropertyScopeGlobal,
+    kAudioObjectPropertyScopeInput, kAudioObjectSystemObject, AudioDeviceID,
+    AudioDeviceSetProperty, AudioObjectGetPropertyData, AudioObjectGetPropertyDataSize,
+    AudioObjectPropertyAddress,
 };
 use std::ffi::CStr;
 use std::mem;
@@ -82,6 +84,81 @@ impl AudioControllerTrait for AudioController {
 
         Ok(Box::new(AudioInputDevice { audio_device_id }))
     }
+
+    /// Get input device by name
+    fn get_input_device(&self, name: String) -> Result<Box<dyn AudioInputDeviceTrait>, AudioError> {
+        for audio_device_id in get_all_device_ids()? {
+            let device = AudioInputDevice { audio_device_id };
+            if name == device.name()? {
+                return Ok(Box::new(device));
+            }
+        }
+
+        return Err(AudioError {
+            msg: "No such device".to_string(),
+        });
+    }
+
+    // Gets all input device names.
+    fn get_input_device_names(&self) -> Result<Vec<String>, AudioError> {
+        let mut device_names: Vec<String> = Vec::new();
+        for audio_device_id in get_all_device_ids()? {
+            device_names.push((AudioInputDevice { audio_device_id }).name()?);
+        }
+        Ok(device_names)
+    }
+}
+
+fn get_all_device_ids() -> Result<Vec<AudioDeviceID>, AudioError> {
+    let property_address = AudioObjectPropertyAddress {
+        mSelector: kAudioHardwarePropertyDevices,
+        mScope: kAudioObjectPropertyScopeInput,
+        mElement: kAudioObjectPropertyElementMaster,
+    };
+
+    let data_size = 0u32;
+    let status = unsafe {
+        AudioObjectGetPropertyDataSize(
+            kAudioObjectSystemObject,
+            &property_address as *const _,
+            0,
+            null(),
+            &data_size as *const _ as *mut _,
+        )
+    };
+
+    if status != kAudioHardwareNoError as i32 {
+        return Err(AudioError {
+            msg: format!("Error: 0x{:X}", status),
+        });
+    }
+    let device_count = data_size / mem::size_of::<AudioDeviceID>() as u32;
+
+    let mut device_ids: Vec<AudioDeviceID> = Vec::new();
+    device_ids.reserve_exact(device_count as usize);
+
+    let status = unsafe {
+        AudioObjectGetPropertyData(
+            kAudioObjectSystemObject,
+            &property_address as *const _,
+            0,
+            null(),
+            &data_size as *const _ as *mut _,
+            device_ids.as_mut_ptr() as *mut _,
+        )
+    };
+
+    if status != kAudioHardwareNoError as i32 {
+        return Err(AudioError {
+            msg: format!("Error: 0x{:X}", status),
+        });
+    }
+
+    unsafe {
+        device_ids.set_len(device_count as usize);
+    }
+
+    Ok(device_ids)
 }
 
 impl AudioInputDeviceTrait for AudioInputDevice {
