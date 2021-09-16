@@ -7,6 +7,10 @@ pub struct AudioError {
     pub msg: String,
 }
 
+pub fn unknown_audio_device_error(name: String) -> AudioError {
+    AudioError { msg: format!("Unknown audio device: {}", name) }
+}
+
 /// Trait that describes an audio input device.
 pub trait AudioInputDeviceTrait {
     /// The human-readable name of the audio device.

@@ -8,7 +8,9 @@ use std::ptr::null_mut;
 use std::result::Result;
 use std::slice;
 
-use crate::audio_controller::{AudioControllerTrait, AudioError, AudioInputDeviceTrait};
+use crate::audio_controller::{
+    unknown_audio_device_error, AudioControllerTrait, AudioError, AudioInputDeviceTrait,
+};
 
 use winapi::{
     shared::{
@@ -151,9 +153,7 @@ impl AudioControllerTrait for AudioController {
                 index += 1;
             }
 
-            return Err(AudioError {
-                msg: "No such device".to_string(),
-            });
+            return Err(unknown_audio_device_error(name));
         }
     }
 

@@ -161,6 +161,13 @@ impl MicController {
     }
 }
 
+fn list_mic_devices(audio: AudioController) {
+    info!("Available audio devices:");
+    for d in audio.get_input_device_names().unwrap() {
+        info!("* {}", d);
+    }
+}
+
 fn main() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
@@ -187,6 +194,8 @@ fn main() {
         (@arg mic_device: -m --mic_device
             value_name("DEVICE")
             "Control a mic device other than the default")
+        (@arg list_mic_devices: --list_mic_devices
+            "Lists available microphone device names, then exits")
     )
     .get_matches();
 
@@ -203,6 +212,11 @@ fn main() {
     };
 
     let audio = AudioController::new();
+    if matches.is_present("list_mic_devices") {
+        list_mic_devices(audio);
+        return;
+    }
+
     let microphone: Option<Box<dyn AudioInputDeviceTrait>> =
         match (microphone_control, microphone_device_name) {
             // Microphone control disabled.
@@ -211,10 +225,7 @@ fn main() {
             (true, Some(v)) => match audio.get_input_device(v) {
                 Ok(d) => Some(d),
                 Err(err) => {
-                    error!("No such audio device. Devices:");
-                    for d in audio.get_input_device_names().unwrap() {
-                        error!("* {}", d);
-                    }
+                    list_mic_devices(audio);
                     panic!("{:?}", err);
                 }
             },

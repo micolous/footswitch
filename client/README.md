@@ -8,7 +8,7 @@ The client listens to a serial port running the `keyboard.ino` or `serial.ino` c
 
 * debounce button presses
 
-* control the mute state of your default microphone device
+* control the mute state of a microphone device
 
   This is useful for microphones that have a monitor output that follows the microphone's mute state – so you won't hear yourself unless the PTT button is held.
 
@@ -59,13 +59,12 @@ Run the `footswitch_serial` executable at the command-line with the device's ser
 
 You can stop the client by pressing <kbd>Control</kbd> + <kbd>C</kbd>.
 
-By default, this will automatically mute your default (communications) microphone device, and only unmute it when the button is not pressed.
-
 The client takes the following command-line flags (which also can be seen by running `cargo run -- --help`):
 
-* `--keyboard`: Enables keyboard input emulation. Only needed if you're running [serial.ino](../serial/serial.ino).
+* `--keyboard`: Enables keyboard input emulation. This is only needed if you're running [serial.ino](../serial/serial.ino).
 * `--no_mute`: Disables automatic microphone mute control.
-* `--mic_device <NAME>`: Control a microphone other than the default.
+* `--mic_device <NAME>`: Select which microphone device to control. If not specified, the default communications device is used.
+* `--list_mic_devices`: Show a list of available microphone devices, then exit.
 * `--debounce <MSEC>`: Number of milliseconds to wait after the footswitch is released before releasing the PTT key and muting the microphone again.
 
 You can also run the client without any command-line arguments to get a list of serial ports on your system:

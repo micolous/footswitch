@@ -18,7 +18,9 @@ use std::mem;
 use std::os::raw::c_char;
 use std::ptr::null;
 
-use crate::audio_controller::{AudioControllerTrait, AudioError, AudioInputDeviceTrait};
+use crate::audio_controller::{
+    unknown_audio_device_error, AudioControllerTrait, AudioError, AudioInputDeviceTrait,
+};
 
 #[macro_export]
 macro_rules! EXAMPLE_PORT {
@@ -94,9 +96,7 @@ impl AudioControllerTrait for AudioController {
             }
         }
 
-        return Err(AudioError {
-            msg: "No such device".to_string(),
-        });
+        return Err(unknown_audio_device_error(name));
     }
 
     // Gets all input device names.
