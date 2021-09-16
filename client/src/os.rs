@@ -4,7 +4,9 @@
  * This is used when the platform is unsupported.
  */
 
-use crate::audio_controller::{AudioControllerTrait, AudioError, AudioInputDeviceTrait};
+use crate::audio_controller::{
+    unknown_audio_device_error, AudioControllerTrait, AudioError, AudioInputDeviceTrait,
+};
 
 #[macro_export]
 macro_rules! EXAMPLE_PORT {
@@ -41,9 +43,7 @@ impl AudioControllerTrait for AudioController {
         if name == self.fake_mic.name {
             Ok(Box::new(self.fake_mic.clone()))
         } else {
-            Err(AudioError {
-                msg: "device not found".to_string(),
-            })
+            Err(unknown_audio_device_error(name))
         }
     }
 
