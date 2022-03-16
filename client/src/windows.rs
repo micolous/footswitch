@@ -56,7 +56,6 @@ macro_rules! try_com {
 pub struct AudioController {}
 
 pub struct AudioInputDevice {
-    mm_device: *mut IMMDevice,
     name: String,
     audio_endpoint_volume: *mut IAudioEndpointVolume,
 }
@@ -116,7 +115,6 @@ impl AudioInputDevice {
         let props = AudioInputDevice::open_property_store(mm_device)?;
 
         Ok(AudioInputDevice {
-            mm_device: mm_device,
             name: AudioInputDevice::get_property_value(props, &PKEY_Device_FriendlyName)?,
             audio_endpoint_volume: AudioInputDevice::get_endpoint_volume(mm_device)?,
         })
