@@ -88,10 +88,10 @@ impl AudioInputDeviceTrait for AudioInputDevice {
             mScope: kAudioDevicePropertyScopeOutput,
             mElement: kAudioObjectPropertyElementMaster,
         };
-        let device_name: CFStringRef = null();
-        let data_size = mem::size_of::<CFStringRef>();
         let mut buf: [u8; 255] = [0; 255];
-        let c_str: &[u8] = unsafe {
+        unsafe {
+            let device_name: CFStringRef = null();
+            let data_size = mem::size_of::<CFStringRef>();
             try_cf!(AudioObjectGetPropertyData(
                 self.audio_device_id,
                 &property_address as *const _,
@@ -104,20 +104,19 @@ impl AudioInputDeviceTrait for AudioInputDevice {
             // We could use CFStringGetCStringPtr here first for an "efficient"
             // reference, but this has lifetime issues.
             // https://developer.apple.com/documentation/corefoundation/1542133-cfstringgetcstringptr
-            let result = CFStringGetCString(
+            if CFStringGetCString(
                 device_name,
                 buf.as_mut_ptr() as *mut i8,
                 buf.len() as _,
                 kCFStringEncodingUTF8,
-            );
-            if result == 0 {
+            ) == 0
+            {
                 return Err(AudioError {
                     msg: "CFStringGetCString failed to return device name string".to_string(),
                 });
             }
-            &buf
         };
-        CStr::from_bytes_with_nul(c_str)
+        CStr::from_bytes_with_nul(&buf)
             .map_err(|e| AudioError {
                 msg: format!("Bad audio device name: {}", e),
             })
