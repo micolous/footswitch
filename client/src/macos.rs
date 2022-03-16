@@ -1,9 +1,7 @@
 extern crate core_foundation_sys;
 extern crate coreaudio;
 
-use core_foundation_sys::string::{
-    kCFStringEncodingUTF8, CFStringGetCString, CFStringGetCStringPtr, CFStringRef,
-};
+use core_foundation_sys::string::{kCFStringEncodingUTF8, CFStringGetCString, CFStringRef};
 use coreaudio::sys::{
     kAudioDevicePropertyDeviceNameCFString, kAudioDevicePropertyMute,
     kAudioDevicePropertyScopeOutput, kAudioHardwareNoError,
@@ -13,7 +11,6 @@ use coreaudio::sys::{
 };
 use std::ffi::CStr;
 use std::mem;
-use std::os::raw::c_char;
 use std::ptr::null;
 
 use crate::audio_controller::{AudioControllerTrait, AudioError, AudioInputDeviceTrait};
@@ -93,8 +90,8 @@ impl AudioInputDeviceTrait for AudioInputDevice {
         };
         let device_name: CFStringRef = null();
         let data_size = mem::size_of::<CFStringRef>();
-        let mut buf: [i8; 255] = [0; 255];
-        let c_str = unsafe {
+        let mut buf: [u8; 255] = [0; 255];
+        let c_str: &[u8] = unsafe {
             try_cf!(AudioObjectGetPropertyData(
                 self.audio_device_id,
                 &property_address as *const _,
@@ -104,27 +101,27 @@ impl AudioInputDeviceTrait for AudioInputDevice {
                 &device_name as *const _ as *mut _,
             ));
 
-            let c_string: *const c_char = CFStringGetCStringPtr(device_name, kCFStringEncodingUTF8);
-            if c_string.is_null() {
-                // The name could not be returned "efficiently", make a new buffer to try.
-                // https://developer.apple.com/documentation/corefoundation/1542133-cfstringgetcstringptr
-                let result = CFStringGetCString(
-                    device_name,
-                    buf.as_mut_ptr(),
-                    buf.len() as _,
-                    kCFStringEncodingUTF8,
-                );
-                if result == 0 {
-                    return Err(AudioError {
-                        msg: "CFStringGetCString failed to return device name string".to_string(),
-                    });
-                }
-                CStr::from_ptr(buf.as_ptr())
-            } else {
-                CStr::from_ptr(c_string as *mut _)
+            // We could use CFStringGetCStringPtr here first for an "efficient"
+            // reference, but this has lifetime issues.
+            // https://developer.apple.com/documentation/corefoundation/1542133-cfstringgetcstringptr
+            let result = CFStringGetCString(
+                device_name,
+                buf.as_mut_ptr() as *mut i8,
+                buf.len() as _,
+                kCFStringEncodingUTF8,
+            );
+            if result == 0 {
+                return Err(AudioError {
+                    msg: "CFStringGetCString failed to return device name string".to_string(),
+                });
             }
+            &buf
         };
-        Ok(c_str.to_string_lossy().into_owned())
+        CStr::from_bytes_with_nul(c_str)
+            .map_err(|e| AudioError {
+                msg: format!("Bad audio device name: {}", e),
+            })
+            .and_then(|r| Ok(r.to_string_lossy().into_owned()))
     }
 
     fn set_mute(&self, state: bool) -> Result<bool, AudioError> {
