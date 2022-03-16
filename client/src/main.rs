@@ -168,13 +168,14 @@ impl MicController<'_> {
     }
 }
 
-fn create_serial_port(serial_device: &str) -> Result<Box<dyn SerialPort>, ()> {
+fn create_serial_port(serial_device: &str) -> Result<Box<dyn SerialPort>, serialport::Error> {
     serialport::new(serial_device, 9600)
         .flow_control(FlowControl::Hardware)
         .timeout(CHANNEL_TIMEOUT)
         .open()
         .map_err(|e| {
-            debug!("Failed to open serial device -> {:?}", e);
+            error!("Failed to open {}: {}", serial_device, e.description);
+            e
         })
 }
 
